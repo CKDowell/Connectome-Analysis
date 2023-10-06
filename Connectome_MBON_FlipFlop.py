@@ -221,6 +221,20 @@ def run_sim_act(inputs,neurons,iterations):
                        'MeanActivityType': activity_mat_type, 'TypesSmall': u_types})    
     
     return sim_output
+
+#%% 
+def x_tick_colours(xt,xtlabs,types,typecolours,**kwargs):
+    plt.xticks(xt,labels=xtlabs,**kwargs)
+    ax = plt.subplot()
+    clist = np.zeros([len(xt),3])
+    for i, t in enumerate(types):
+        tdx = [i for i, it in enumerate(xtlabs) if t in it]
+        clist[tdx,:] = typecolours[i,:]
+        
+    for i, xtick in enumerate(ax.get_xticklabels()):
+        xtick.set_color(clist[i,:])
+        
+    # Function will output different coloured
 #%% MBON 1
 sim_output = run_sim_act(['MBON01','FC2B'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],3)
 
@@ -252,12 +266,211 @@ tsim = sim_output['MeanActivityType']
 plt.imshow(tsim,vmax=0.01,vmin=-0.01,aspect='auto',interpolation='none',cmap='Greys_r')
 t_names = sim_output['TypesSmall']
 plt.xticks(np.linspace(0,len(t_names)-1,len(t_names)),labels= t_names,rotation=90)
+
+#%% FB5AB activation
+sim_output = run_sim_act(['FB5AB'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],3)
+tsim = sim_output['MeanActivityType']
+plt.imshow(tsim,vmax=0.01,vmin=-0.01,aspect='auto',interpolation='none',cmap='Greys_r')
+t_names = sim_output['TypesSmall']
+plt.xticks(np.linspace(0,len(t_names)-1,len(t_names)),labels= t_names,rotation=90)
+#%%
+sim_output = run_sim_act(['FB4R'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],3)
+tsim = sim_output['MeanActivityType']
+plt.imshow(tsim,vmax=0.01,vmin=-0.01,aspect='auto',interpolation='none',cmap='Greys_r')
+t_names = sim_output['TypesSmall']
+plt.xticks(np.linspace(0,len(t_names)-1,len(t_names)),labels= t_names,rotation=90)
 #%% Compare gamma3 with gamma 4/5
 sim_output_g45 = run_sim_act(['MBON21','MBON05','MBON01','MBON29','MBON27','MBON24'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],3)
 sim_output_g3 = run_sim_act(['MBON30','MBON33','MBON08','MBON09'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],3)
+sim_output_g23 = run_sim_act(['MBON30','MBON33','MBON08','MBON09','MBON12','MBON35','MBON32','MBON34','MBON20','MBON25'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],3)
 x = sim_output_g45['MeanActivityType'][1,:]
 y = sim_output_g3['MeanActivityType'][1,:]
-plt.scatter(x,y)
+#%% gamma 4/5, b1, b1' and b2 and b2'
+sim_output_g45_plus = run_sim_act(['MBON21','MBON05','MBON01','MBON29','MBON27','MBON24','MBON10','MBON26','MBON06','MBON02'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],3)
+tsim = sim_output['MeanActivityType']
+plt.imshow(tsim,vmax=0.01,vmin=-0.01,aspect='auto',interpolation='none',cmap='Greys_r')
+t_names = sim_output['TypesSmall']
+plt.xticks(np.linspace(0,len(t_names)-1,len(t_names)),labels= t_names,rotation=90)
+#%% hDeltaC
+sim_output = run_sim_act(['hDeltaC'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],3)
+tsim = sim_output['MeanActivityType']
+plt.imshow(tsim,vmax=0.01,vmin=-0.01,aspect='auto',interpolation='none',cmap='Greys_r')
+t_names = sim_output['TypesSmall']
+plt.xticks(np.linspace(0,len(t_names)-1,len(t_names)),labels= t_names,rotation=90)
+#%% 
+tan_dict = set_neur_dicts('FB.*')
+FC_dict = set_neur_dicts('FC.*')
+#%%
+tan_dx = [i for i,t in enumerate(sim_output_g3['TypesSmall']) if 'FB' in t]
+t_x = x[tan_dx]
+t_y = y[tan_dx]
+tan_names = sim_output_g3['TypesSmall'][tan_dx]
+plt.Figure()
+plt.scatter(t_x,t_y,c= [0, 0, 0])
+large_tan = np.where(np.logical_or(np.abs(t_x)>0.005,np.abs(t_y)>0.005))
+colours = np.array([[77,175,74],
+                     [255,127,0],
+                     [55,126,184],
+                     [247,129,191],
+                     [166,86,40],
+                     [152,78,163],
+                     [153,153,153]
+                     ])/255
+for i in large_tan[0]:
+    tan_dict_dx = tan_dict['Neur_names']==tan_names[i]
+    t_nt = tan_dict['NT_id'][tan_dict_dx]
+    t_nt = int(t_nt[0])
+    nt_id = tan_dict['NT_list'][t_nt]
+    print(tan_names[i] + ' ' + nt_id)
+    
+    plt.scatter(t_x[i],t_y[i],c=colours[t_nt,:])
+    plt.text(t_x[i],t_y[i],tan_names[i])
+
+plt.xlabel('Gamma 4/5 activation')
+plt.ylabel('Gamma 3 activation')
+#%% get tangential neuron properties
+
+mbd = set_neur_dicts('MBON.*')
+#%% Gamma 3 activation
+tsim = sim_output_g3['MeanActivityType']
+ondx = np.max(np.abs(tsim[:2,:]),axis=0)>0.001
+
+plt.figure(figsize=(12,4))
+plt.imshow(tsim[:2,ondx],vmax=0.005,vmin=-0.005,aspect='auto',interpolation='none',cmap='Greys_r')
+t_names = sim_output_g45['TypesSmall']
+plt.xticks(np.linspace(0,len(t_names[ondx])-1,len(t_names[ondx])),labels= t_names[ondx],rotation=90)
+plt.subplots_adjust(bottom=0.4)
+plt.show()
+#%% Gamma 4/5 beta1-2 beta'1-2
+savedir = 'C:\\Users\\dowel\\Documents\\PostDoc\\ConnectomeMining\\ActivationSimulations\\'
+savename = 'Gamma45_plus'
+non_mbon = [i for i,t in enumerate(sim_output_g3['TypesSmall']) if 'MBON' not in t]
+tsim = sim_output_g45_plus['MeanActivityType']
+ts_norm = tsim[:,non_mbon]
+t_norm = np.max(np.abs(ts_norm),axis=1)
+t_norm[0] = 1
+t_norm = t_norm.reshape(-1,1)
+tsim = tsim/t_norm
+
+ondx = np.max(np.abs(tsim[:3,:]),axis=0)>0.01
+plt.figure(figsize=(16,4))
+plt.imshow(tsim[:3,:],vmax=.5,vmin=-.5,aspect='auto',interpolation='none',cmap='coolwarm')
+t_names = sim_output_g45['TypesSmall']
+#plt.xticks(np.linspace(0,len(t_names[ondx])-1,len(t_names[ondx])),labels= t_names[ondx],rotation=90,fontsize=8)
+plt.yticks(np.linspace(0,2,3))
+plt.ylabel('Iterations')
+plt.subplots_adjust(bottom=0.4)
+colours = np.array([[27,158,119],
+[217,95,2],
+[117,112,179],
+[231,41,138],
+[102,166,30],
+[230,171,2]])/255
+x_tick_colours(np.linspace(0,len(t_names[:])-1,len(t_names[:])),t_names[:],['FB','MBON','FC','hDelta','vDelta','PFL'],
+               colours,rotation=90,fontsize=8)
+
+
+plt.savefig(savedir +savename +'.eps')
+plt.show()
+#%% Gamma 2-3 activation
+savedir = 'C:\\Users\\dowel\\Documents\\PostDoc\\ConnectomeMining\\ActivationSimulations\\'
+savename = 'Gamma2_3'
+tsim = sim_output_g23['MeanActivityType']
+ts_norm = tsim[:,non_mbon]
+t_norm = np.max(np.abs(ts_norm),axis=1)
+t_norm[0] = 1
+t_norm = t_norm.reshape(-1,1)
+tsim = tsim/t_norm
+
+ondx = np.max(np.abs(tsim[:3,:]),axis=0)>0.025
+plt.figure(figsize=(16,4))
+plt.imshow(tsim[:3,:],vmax=.5,vmin=-.5,aspect='auto',interpolation='none',cmap='coolwarm')
+t_names = sim_output_g45['TypesSmall']
+#plt.xticks(np.linspace(0,len(t_names[ondx])-1,len(t_names[ondx])),labels= t_names[ondx],rotation=90,fontsize=8)
+plt.yticks(np.linspace(0,2,3))
+plt.ylabel('Iterations')
+plt.subplots_adjust(bottom=0.4)
+
+colours = np.array([[27,158,119],
+[217,95,2],
+[117,112,179],
+[231,41,138],
+[102,166,30],
+[230,171,2]])/255
+x_tick_colours(np.linspace(0,len(t_names[:])-1,len(t_names[:])),t_names[:],['FB','MBON','FC','hDelta','vDelta','PFL'],
+               colours,rotation=90,fontsize=6)
+
+plt.savefig(savedir +savename +'.eps')
+plt.show()
+#%% Plot 1st iteration against one another
+savedir = 'C:\\Users\\dowel\\Documents\\PostDoc\\ConnectomeMining\\ActivationSimulations\\'
+savename = '1st Iteration differences'
+
+tsim = sim_output_g23['MeanActivityType']
+ts_norm = tsim[:,non_mbon]
+tan_names = sim_output_g23['TypesSmall'][non_mbon]
+t_norm = np.max(np.abs(ts_norm),axis=1)
+t_norm[0] = 1
+t_norm = t_norm.reshape(-1,1)
+tsim_g23 = tsim/t_norm
+
+tsim = sim_output_g45_plus['MeanActivityType']
+ts_norm = tsim[:,non_mbon]
+t_norm = np.max(np.abs(ts_norm),axis=1)
+t_norm[0] = 1
+t_norm = t_norm.reshape(-1,1)
+tsim_g45plus = tsim/t_norm
+x = tsim_g45plus[1,non_mbon]
+y = tsim_g23[1,non_mbon]
+plt.Figure()
+
+plt.plot([-1,1],[0,0],c='k',zorder =1)
+plt.plot([0,0],[-1,1],c='k',zorder=1)
+plt.scatter(x,y,zorder=2)
+plt.xlim([-.25,1.1])
+plt.ylim([-1.1, .25])
+
+ldx = np.where(np.logical_or(abs(x)>0.1, abs(y)>0.1))
+for i in ldx[0]:
+
+    plt.text(x[i],y[i],tan_names[i])
+
+
+plt.xlabel('Norm activity Gamma 4 5 plus')
+plt.ylabel('Norm activity Gamma 2 3')
+plt.title('1st Iteration')
+
+plt.rcParams['pdf.fonttype'] = 42 
+plt.savefig(savedir +savename +'.pdf', format='pdf')
+plt.show()
+#%% Plot 2nd iteration against one another
+savedir = 'C:\\Users\\dowel\\Documents\\PostDoc\\ConnectomeMining\\ActivationSimulations\\'
+savename = '2nd Iteration differences'
+
+
+x = tsim_g45plus[2,non_mbon]
+y = tsim_g23[2,non_mbon]
+plt.Figure()
+plt.plot([-1,1],[0,0],c='k',zorder =1)
+plt.plot([0,0],[-1,1],c='k',zorder=1)
+plt.scatter(x,y,zorder=2)
+plt.xlim([-1.1,0.25])
+plt.ylim([-1.1, 1.1])
+
+ldx = np.where(np.logical_or(abs(x)>0.2, abs(y)>0.2))
+for i in ldx[0]:
+    if 'FB' in tan_names[i]:
+        continue
+    plt.text(x[i],y[i],tan_names[i],fontsize=8)
+
+
+plt.xlabel('Norm activity Gamma 4 5 plus')
+plt.ylabel('Norm activity Gamma 2 3')
+plt.title('2nd Iteration')
+plt.rcParams['pdf.fonttype'] = 42 
+plt.savefig(savedir +savename +'.pdf', format='pdf')
+plt.show()
+
 #%%
 input_dict = set_MBON_dicts()
 output_dict = set_neur_dicts('FB.*')
