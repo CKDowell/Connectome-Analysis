@@ -27,6 +27,8 @@ from neuprint import fetch_adjacencies, fetch_neurons, NeuronCriteria as NC
 from neuprint import queries 
 from scipy import stats
 import matplotlib.pyplot as plt
+import pickle
+import os
 #%% MBON dictionary of properties
 def set_MBON_dicts():
     # Easier to set manually
@@ -115,22 +117,28 @@ def get_NT_identity(body_ids):
     nt_id = np.argmax(NT_matrix,1)
     print('Got NTs')
     # NT list 0: gaba 1: ACh 2: Glu 3: 5HT 4: octopamine 5: DA 6: neither
-    return NT_matrix, nt_id
+    return NT_matrix, nt_id, body_ids
 #%% Return tangential neuron dictionary of properties
 def set_neur_dicts(types):
     print('Getting neurons')
     criteria = NC(type=types)
     df_neuron,roi_neuron = fetch_neurons(criteria)
     print('Getting NTs')
-    NT_matrix, nt_id = get_NT_identity(df_neuron['bodyId'])
+    #NT_matrix, nt_id = get_NT_identity(df_neuron['bodyId']) #Uncomment this if you want to compute NT identies from original synister data
+    with open('C:\\Users\\dowel\\Documents\\PostDoc\\ConnectomeMining\\All_NTs.pkl', 'rb') as f:
+        All_NTs = pickle.load(f)
+    nt_id = All_NTs[1]
     n_names = pd.Series.to_numpy(df_neuron['type'])
+    n_ids = pd.Series.to_numpy(df_neuron['bodyId'])
     tan_names = np.unique(n_names)
     nt_sign = np.empty(np.shape(tan_names))
     nt_ids = np.empty(np.shape(tan_names))
     nt_sign_index = [-1, 1, -1, 0, 1, -1, 0]# zero for 5HT, 1 for octopamine, -1 for DA
     for i,t in enumerate(tan_names):
         bod_dx = n_names==t
-        n_types = nt_id[bod_dx]
+        t_ids = n_ids[bod_dx]
+        n_dx = np.in1d(All_NTs[2],t_ids)
+        n_types = nt_id[n_dx]
         nt_type = stats.mode(n_types)
         nt_sign[i] = nt_sign_index[nt_type.mode]
         nt_ids[i] = nt_type.mode
@@ -139,7 +147,20 @@ def set_neur_dicts(types):
     neur_dicts = dict({'Neur_names':tan_names, 'NT_sign':nt_sign, 'NT_id':nt_ids, 'NT_list': NT_list})
     print('Done')
     return neur_dicts
+#%% Make NT_dict for all neurons - this should cut down runtime
+criteria = NC(type = '.*')
+neuron_df,roi_df = fetch_neurons(criteria)
+all_nt = get_NT_identity(neuron_df['bodyId'])
 
+savename = "All_NTs.pkl"
+savedir = 'C:\\Users\\dowel\\Documents\\PostDoc\\ConnectomeMining\\'
+
+savepath = os.path.join(savedir, savename)
+
+with open(savepath, 'wb') as file:
+    pickle.dump(all_nt, file)
+#%%
+mbon_dict = set_neur_dicts('MBON.*')
 #%% 
 
 def run_sim_act(inputs,neurons,iterations):
@@ -221,6 +242,158 @@ def run_sim_act(inputs,neurons,iterations):
                        'MeanActivityType': activity_mat_type, 'TypesSmall': u_types})    
     
     return sim_output
+# %%  
+from neuprint import fetch_mean_synapses, SynapseCriteria as SC
+syn_df = fetch_mean_synapses('hDeltaC',SC(type='pre',rois = ['FB']))
+# %%
+
+#%% 
+def run_sim_tan_col(inputs_class,columnar_type,col_number,neurons,pre_iterations,iterations):
+    # Function simulates fan-shaped body activity if one column given input from 
+    # a whole class of neurons for activity in a single column
+    
+    # Need to output matrices of columnar neurons by their location
+    
+    neur_dicts = set_neur_dicts(neurons) #gets types and associated NTs
+    n_ids = np.empty(0,dtype='int64')
+    n_types = np.empty(0)
+    for n in neurons:
+        criteria = NC(type=n)
+        df_neuron,roi_neuron = fetch_neurons(criteria)    
+        n_ids = np.append(n_ids,pd.Series.to_numpy(df_neuron['bodyId'],dtype='int64'))
+        n_types = np.append(n_types,df_neuron['type'])
+    criteria = NC(bodyId=n_ids)
+    
+    neurons_df, roi_con_df = fetch_adjacencies(sources = n_ids,targets = n_ids,batch_size=200)#get connections
+    
+    
+    # get columnar neurons
+    
+    col_neurs = np.empty(0)
+    for c1 in columnar_type:
+        print(c1)
+        criteria = NC(type = c1)
+        c_neuron, c_roi = fetch_neurons(criteria)
+        c_ids = c_neuron['bodyId']
+        c_instance = c_neuron['instance']
+        for ni, n in enumerate(c_instance):
+            
+            for i in range(len(n)-2):
+                tnum = 0
+                
+                if n[i:i+2] =='_C':
+                    tnum = int(n[i+2])
+                    break
+                
+            if tnum==col_number:
+                col_neurs = np.append(col_neurs,c_ids[ni])
+    
+    
+    neuron_basic,roi_counts = fetch_neurons(n_ids)
+    
+    norm_dx = np.in1d(neuron_basic['bodyId'],neurons_df['bodyId'])
+    
+    norm_outweight = neuron_basic['post'][norm_dx] # There is also an upstream field that I think includes connections to unidentified neurites
+    norm_outweight = np.expand_dims(norm_outweight,1)
+    norm_outweight = np.transpose(norm_outweight)
+    
+    # Set up connectivity matrix - 
+    conmatrix = np.zeros([len(neurons_df), len(neurons_df)])
+    bod_id = pd.Series.to_numpy(neurons_df['bodyId'])
+    con_in = pd.Series.to_numpy(roi_con_df['bodyId_pre'])
+    con_out = pd.Series.to_numpy(roi_con_df['bodyId_post'])
+    weights = pd.Series.to_numpy(roi_con_df['weight'])
+    types = pd.Series.to_numpy(neurons_df['type'])
+    for i,b in enumerate(bod_id):   
+        indx = con_in==b
+        t_outs = con_out[indx]
+        t_w = weights[indx]
+        
+        t_outs_u = np.unique(t_outs) # annoyingly not all connections are summed as 1-2-1
+        t_w_u = np.zeros_like(t_outs_u)
+        for iu, u in enumerate(t_outs_u):
+            todx = t_outs==u
+            t_w_u[iu] = np.sum(t_w[todx])
+        
+        t_out_dx = np.where(np.in1d(bod_id,t_outs_u))
+        conmatrix[i,t_out_dx] = t_w_u
+    
+    conmatrix = conmatrix/norm_outweight # normalise input strength by total input to each neuron
+    # Set input weights
+    w_types = neur_dicts['Neur_names']
+    for r, i in enumerate(w_types):
+        t_sign = neur_dicts['NT_sign'][r]
+        tdx = types==i
+        conmatrix[tdx,:] = conmatrix[tdx,:]*t_sign
+        
+    
+        
+    # Set up second activation vector with columnar activity
+    a_vec_col = np.zeros([len(types),1])
+    idx = np.in1d(bod_id,col_neurs)
+    a_vec_col[idx] = 1
+
+    a_vec_col = np.transpose(a_vec_col)    
+ 
+    # Iterations with just columnar input, columnar input needs to be maintained throughout
+    activity_mat = a_vec_col
+    act_vec = np.matmul(activity_mat,conmatrix)
+    activity_mat = np.append(activity_mat,act_vec,axis=0)
+    for i in range(pre_iterations-1):
+        act_vec[act_vec<0] = 0 # need to stop negative activity from being propagated, this effectively puts a relu in place
+        act_vec = act_vec+a_vec_col # keep on adding input to the columnar neurons
+        act_vec = np.matmul(act_vec,conmatrix)
+        activity_mat = np.append(activity_mat,act_vec,axis=0)
+    
+    # Set up activation vector (1), with generic inputs
+    a_vec = np.zeros([len(types), 1])
+    for i in inputs_class:
+        idx = types==i
+        a_vec[idx] = 1
+    
+    # add in activation vector from generic input and iterate
+    activity_mat[-1,:] = activity_mat[-1,:]+np.transpose(a_vec)
+    act_vec = act_vec+np.transpose(a_vec)+a_vec_col
+    act_vec = np.matmul(act_vec,conmatrix)
+    activity_mat = np.append(activity_mat,act_vec,axis=0)
+    
+    for i in range(iterations-1):
+        act_vec[act_vec<0] = 0 # need to stop negative activity from being propagated, this effectively puts a relu in place
+        act_vec = act_vec+a_vec_col
+        act_vec = np.matmul(act_vec,conmatrix)
+        
+        activity_mat = np.append(activity_mat,act_vec,axis=0)
+    
+    # Compile results into type activation
+    u_types = np.unique(types)
+    activity_mat_type = np.zeros([iterations+pre_iterations+1,len(u_types),])
+    for i, t in enumerate(u_types):
+        tdx = types==t
+        activity_mat_type[:,i] = np.mean(activity_mat[:,tdx],axis=1)
+    
+    # Compile results into columnar activation matrices 
+    # I think output as mean pre synapse coordinates in x,y,z vs activity
+    
+    # Probably best to compile these once then load
+    
+    # Compile results into an output dictionary
+    sim_output = dict({'ActivityAll': activity_mat, 'TypesAll': types, 'ROI_ID': bod_id, 
+                       'MeanActivityType': activity_mat_type, 'TypesSmall': u_types})
+    
+    return sim_output
+
+inputs_class = ['FB5AB']
+columnar_type = ['FC2B.*']
+col_number  =5
+neurons = ['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*','FR.*']
+pre_iterations = 3
+iterations = 3
+sim_output = run_sim_tan_col(['MBON30','MBON33','MBON08','MBON09','MBON12','MBON35','MBON32','MBON34','MBON20','MBON25'],['hDeltaB','hDeltaC','FC2.*'],5,['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*','FR.*'],5,3)
+#%%
+tsim = sim_output['MeanActivityType']
+plt.imshow(tsim,vmax=0.01,vmin=-0.01,aspect='auto',interpolation='none',cmap='coolwarm')
+t_names = sim_output['TypesSmall']
+plt.xticks(np.linspace(0,len(t_names)-1,len(t_names)),labels= t_names,rotation=90)
 
 #%% 
 def x_tick_colours(xt,xtlabs,types,typecolours,**kwargs):
@@ -270,7 +443,16 @@ plt.xticks(np.linspace(0,len(t_names)-1,len(t_names)),labels= t_names,rotation=9
 #%% FB5AB activation
 sim_output = run_sim_act(['FB5AB'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],3)
 tsim = sim_output['MeanActivityType']
-plt.imshow(tsim,vmax=0.01,vmin=-0.01,aspect='auto',interpolation='none',cmap='Greys_r')
+ts_norm = tsim[:,non_mbon]
+t_norm = np.max(np.abs(ts_norm),axis=1)
+t_norm[0] = 1   
+t_norm = t_norm.reshape(-1,1)
+tsim = tsim/t_norm
+
+ondx = np.max(np.abs(tsim[:,:]),axis=0)>0.01
+plt.figure(figsize=(17,4))
+plt.imshow(tsim[:,:],vmax=.5,vmin=-.5,aspect='auto',interpolation='none',cmap='coolwarm')
+
 t_names = sim_output['TypesSmall']
 plt.xticks(np.linspace(0,len(t_names)-1,len(t_names)),labels= t_names,rotation=90)
 #%%
@@ -352,9 +534,9 @@ t_norm[0] = 1
 t_norm = t_norm.reshape(-1,1)
 tsim = tsim/t_norm
 
-ondx = np.max(np.abs(tsim[:3,:]),axis=0)>0.01
-plt.figure(figsize=(16,4))
-plt.imshow(tsim[:3,:],vmax=.5,vmin=-.5,aspect='auto',interpolation='none',cmap='coolwarm')
+ondx = np.max(np.abs(tsim[:,:]),axis=0)>0.01
+plt.figure(figsize=(17,4))
+plt.imshow(tsim[:,:],vmax=.5,vmin=-.5,aspect='auto',interpolation='none',cmap='coolwarm')
 t_names = sim_output_g45['TypesSmall']
 #plt.xticks(np.linspace(0,len(t_names[ondx])-1,len(t_names[ondx])),labels= t_names[ondx],rotation=90,fontsize=8)
 plt.yticks(np.linspace(0,2,3))
@@ -367,10 +549,10 @@ colours = np.array([[27,158,119],
 [102,166,30],
 [230,171,2]])/255
 x_tick_colours(np.linspace(0,len(t_names[:])-1,len(t_names[:])),t_names[:],['FB','MBON','FC','hDelta','vDelta','PFL'],
-               colours,rotation=90,fontsize=8)
+               colours,rotation=90,fontsize=6)
 
 
-plt.savefig(savedir +savename +'.eps')
+#plt.savefig(savedir +savename +'.eps')
 plt.show()
 #%% Gamma 2-3 activation
 savedir = 'C:\\Users\\dowel\\Documents\\PostDoc\\ConnectomeMining\\ActivationSimulations\\'
@@ -382,9 +564,9 @@ t_norm[0] = 1
 t_norm = t_norm.reshape(-1,1)
 tsim = tsim/t_norm
 
-ondx = np.max(np.abs(tsim[:3,:]),axis=0)>0.025
-plt.figure(figsize=(16,4))
-plt.imshow(tsim[:3,:],vmax=.5,vmin=-.5,aspect='auto',interpolation='none',cmap='coolwarm')
+ondx = np.max(np.abs(tsim[:,:]),axis=0)>0.025
+plt.figure(figsize=(17,4))
+plt.imshow(tsim[:,:],vmax=.5,vmin=-.5,aspect='auto',interpolation='none',cmap='coolwarm')
 t_names = sim_output_g45['TypesSmall']
 #plt.xticks(np.linspace(0,len(t_names[ondx])-1,len(t_names[ondx])),labels= t_names[ondx],rotation=90,fontsize=8)
 plt.yticks(np.linspace(0,2,3))
@@ -400,7 +582,7 @@ colours = np.array([[27,158,119],
 x_tick_colours(np.linspace(0,len(t_names[:])-1,len(t_names[:])),t_names[:],['FB','MBON','FC','hDelta','vDelta','PFL'],
                colours,rotation=90,fontsize=6)
 
-plt.savefig(savedir +savename +'.eps')
+#plt.savefig(savedir +savename +'.eps')
 plt.show()
 #%% Plot 1st iteration against one another
 savedir = 'C:\\Users\\dowel\\Documents\\PostDoc\\ConnectomeMining\\ActivationSimulations\\'
@@ -427,6 +609,11 @@ plt.Figure()
 plt.plot([-1,1],[0,0],c='k',zorder =1)
 plt.plot([0,0],[-1,1],c='k',zorder=1)
 plt.scatter(x,y,zorder=2)
+type_names = ['FB','MBON','FC','hDelta','vDelta','PFL']
+for it,ty in enumerate(type_names):
+    dx  = [i for i,t in enumerate(sim_output_g3['TypesSmall'][non_mbon]) if ty in t]
+    plt.scatter(x[dx],y[dx],zorder=2,c=colours[it,:])
+
 plt.xlim([-.25,1.1])
 plt.ylim([-1.1, .25])
 
@@ -453,7 +640,17 @@ y = tsim_g23[2,non_mbon]
 plt.Figure()
 plt.plot([-1,1],[0,0],c='k',zorder =1)
 plt.plot([0,0],[-1,1],c='k',zorder=1)
-plt.scatter(x,y,zorder=2)
+plt.plot([-1, 1],[-1, 1],c='k',zorder =1,linestyle = '--')
+#plt.scatter(x,y,zorder=2)
+colours = np.array([[117,112,179],
+[231,41,138],
+[102,166,30],
+[230,171,2]])/255
+type_names = ['FC','hDelta','vDelta','PFL']
+for it,ty in enumerate(type_names):
+    dx  = [i for i,t in enumerate(sim_output_g3['TypesSmall'][non_mbon]) if ty in t]
+    plt.scatter(x[dx],y[dx],zorder=2,c=colours[it,:])
+
 plt.xlim([-1.1,0.25])
 plt.ylim([-1.1, 1.1])
 
