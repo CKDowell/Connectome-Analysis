@@ -24,6 +24,7 @@ c.fetch_version()
 import pandas as pd
 import numpy as np
 from neuprint import fetch_adjacencies, fetch_neurons, NeuronCriteria as NC
+from neuprint import fetch_mean_synapses, SynapseCriteria as SC
 from neuprint import queries 
 from scipy import stats
 import matplotlib.pyplot as plt
@@ -243,11 +244,12 @@ def run_sim_act(inputs,neurons,iterations):
     
     return sim_output
 # %%  
-from neuprint import fetch_mean_synapses, SynapseCriteria as SC
-syn_df = fetch_mean_synapses('hDeltaC',SC(type='pre',rois = ['FB']))
+
+syn_df = fetch_mean_synapses(sim_output['ROI_ID'],SC(type='pre',rois = ['FB']))
 # %%
 
 #%% 
+# Refine to specifiy columnar input of each type
 def run_sim_tan_col(inputs_class,columnar_type,col_number,neurons,pre_iterations,iterations):
     # Function simulates fan-shaped body activity if one column given input from 
     # a whole class of neurons for activity in a single column
@@ -371,13 +373,24 @@ def run_sim_tan_col(inputs_class,columnar_type,col_number,neurons,pre_iterations
         tdx = types==t
         activity_mat_type[:,i] = np.mean(activity_mat[:,tdx],axis=1)
     
-    # Compile results into columnar activation matrices 
-    # I think output as mean pre synapse coordinates in x,y,z vs activity
+
+    # Get mean pre-synapse location
+    syn_df = fetch_mean_synapses(bod_id,SC(type='pre',rois = ['FB']))
     
+    syn_loc = np.empty([len(bod_id),3],dtype='float')
+    syn_loc[:] = np.nan
+    for i, ids in enumerate(bod_id):
+        sdx = syn_df['bodyId']==ids
+        if sum(sdx)==0:
+            continue
+        syn_loc[i,0] = syn_df['x'][sdx]
+        syn_loc[i,1] = syn_df['y'][sdx]
+        syn_loc[i,2] = syn_df['z'][sdx]        
     # Probably best to compile these once then load
     
     # Compile results into an output dictionary
-    sim_output = dict({'ActivityAll': activity_mat, 'TypesAll': types, 'ROI_ID': bod_id, 
+    sim_output = dict({'ActivityAll': activity_mat, 'TypesAll': types, 'body_Id': bod_id, 
+                       'mean_pre_syn': syn_loc,
                        'MeanActivityType': activity_mat_type, 'TypesSmall': u_types})
     
     return sim_output
@@ -394,7 +407,25 @@ tsim = sim_output['MeanActivityType']
 plt.imshow(tsim,vmax=0.01,vmin=-0.01,aspect='auto',interpolation='none',cmap='coolwarm')
 t_names = sim_output['TypesSmall']
 plt.xticks(np.linspace(0,len(t_names)-1,len(t_names)),labels= t_names,rotation=90)
+#%% scatter FC2 neuropil
 
+sim_output = run_sim_tan_col(['MBON21','MBON05','MBON01','MBON29','MBON27','MBON24','MBON10','MBON26','MBON06','MBON02'],['hDeltaB'],5,['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*','FR.*'],5,3)
+#%%
+t_type = 'FC2C'
+bod_ids = sim_output['body_Id']
+t_ids = sim_output['TypesAll']
+fc_id = [ i for i,b in enumerate(t_ids) if t_type in b  ]
+fc_locs = sim_output['mean_pre_syn'][fc_id]
+fc_act = sim_output['ActivityAll'][:,fc_id]
+fc_max = np.max(np.abs(fc_act[:]),1)
+fc_maxB = fc_max[:,np.newaxis]
+fc_act = np.round(50 * fc_act /fc_maxB)
+plt.Figure()
+offset = 0
+for i in range(9):
+    plt.scatter(fc_locs[:,0],fc_locs[:,1]-offset,c=fc_act[i,:],cmap='coolwarm',vmin= -50,vmax = 50)
+    offset = offset+(max(fc_locs[:,1]+10)-min(fc_locs[:,1]))
+plt.show
 #%% 
 def x_tick_colours(xt,xtlabs,types,typecolours,**kwargs):
     plt.xticks(xt,labels=xtlabs,**kwargs)
