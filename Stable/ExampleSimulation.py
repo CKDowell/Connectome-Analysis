@@ -32,9 +32,9 @@ Created on Tue Oct 24 12:21:04 2023
 # there are quite a few but this is because I used a standard spyder env and
 # added necessary ones.
 # 2. Get Neuprint python token from neuprint.janelia.org, copy and paste your
-# token ID into line 10 of Simulation functions
+# token ID into line 10 of SimulationFunctions
 # 3. Download neurotransmitter predictions from here: https://storage.googleapis.com/hemibrain/v1.2/hemibrain-v1.2-tbar-neurotransmitters.feather.bz2
-# 4. Copy and paste the address of saved neutransmitter .bz2 file into line 25
+# 4. Copy and paste the address of saved neutransmitter .bz2 file into line 25 of SimulationFunctions
 
 #%% Run SimulationFunctions
 
