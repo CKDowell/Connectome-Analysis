@@ -96,7 +96,7 @@ import bz2
 
 def get_NT_identity(body_ids):
     print('Loading NT dataset')
-    filepath = 'C:\\Users\\dowel\\Documents\\PostDoc\\ConnectomeMining\\hemibrain-v1.2-tbar-neurotransmitters.feather.bz2'
+    filepath = 'D:\\ConnectomeData\\Neurotransmitters\\hemibrain-v1.2-tbar-neurotransmitters.feather.bz2'
 
     with bz2.open(filepath, 'rb') as bz2_file:
         # Read the decompressed binary data
@@ -154,7 +154,7 @@ neuron_df,roi_df = fetch_neurons(criteria)
 all_nt = get_NT_identity(neuron_df['bodyId'])
 
 savename = "All_NTs.pkl"
-savedir = 'C:\\Users\\dowel\\Documents\\PostDoc\\ConnectomeMining\\'
+savedir = 'D:\\ConnectomeData\\Neurotransmitters'
 
 savepath = os.path.join(savedir, savename)
 
@@ -243,6 +243,9 @@ def run_sim_act(inputs,neurons,iterations):
                        'MeanActivityType': activity_mat_type, 'TypesSmall': u_types})    
     
     return sim_output
+# %%  
+sim_output = run_sim_act(['DA1_lPN','DA1_vPN'],['.*'],10)
+
 # %%  
 
 syn_df = fetch_mean_synapses(sim_output['ROI_ID'],SC(type='pre',rois = ['FB']))
