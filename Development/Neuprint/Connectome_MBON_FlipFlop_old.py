@@ -118,7 +118,17 @@ def get_NT_identity(body_ids):
     nt_id = np.argmax(NT_matrix,1)
     print('Got NTs')
     # NT list 0: gaba 1: ACh 2: Glu 3: 5HT 4: octopamine 5: DA 6: neither
-    return NT_matrix, nt_id, body_ids
+    return NT_matrix, nt_id, body_ids, nt_list
+#%% Run this to correct for incorrect neurotransmitter predictions from synister
+
+def neur_pred_correction():
+    d = {'N_type': ['FB5AB'],
+                            'NT_num':[1],
+                            'NT_type': ['ACh']}
+    nt_known = pd.DataFrame(data=d)
+    return nt_known
+    
+
 #%% Return tangential neuron dictionary of properties
 def set_neur_dicts(types):
     print('Getting neurons')
@@ -126,7 +136,7 @@ def set_neur_dicts(types):
     df_neuron,roi_neuron = fetch_neurons(criteria)
     print('Getting NTs')
     #NT_matrix, nt_id = get_NT_identity(df_neuron['bodyId']) #Uncomment this if you want to compute NT identies from original synister data
-    with open('C:\\Users\\dowel\\Documents\\PostDoc\\ConnectomeMining\\All_NTs.pkl', 'rb') as f:
+    with open('D:\\ConnectomeData\\Neurotransmitters\\All_NTs.pkl', 'rb') as f:
         All_NTs = pickle.load(f)
     nt_id = All_NTs[1]
     n_names = pd.Series.to_numpy(df_neuron['type'])
@@ -135,14 +145,21 @@ def set_neur_dicts(types):
     nt_sign = np.empty(np.shape(tan_names))
     nt_ids = np.empty(np.shape(tan_names))
     nt_sign_index = [-1, 1, -1, 0, 1, -1, 0]# zero for 5HT, 1 for octopamine, -1 for DA
+    nt_known = neur_pred_correction()
+    kn_types = nt_known['N_type']
     for i,t in enumerate(tan_names):
-        bod_dx = n_names==t
-        t_ids = n_ids[bod_dx]
-        n_dx = np.in1d(All_NTs[2],t_ids)
-        n_types = nt_id[n_dx]
-        nt_type = stats.mode(n_types)
-        nt_sign[i] = nt_sign_index[nt_type.mode]
-        nt_ids[i] = nt_type.mode
+        nt_k_dx = kn_types==t
+        if sum(nt_k_dx)>0:
+            nt_ids[i] = nt_known['NT_num'][nt_k_dx]
+            nt_sign[i] = nt_sign_index[nt_ids[i].astype(int)]
+        else: 
+            bod_dx = n_names==t
+            t_ids = n_ids[bod_dx]
+            n_dx = np.in1d(All_NTs[2],t_ids)
+            n_types = nt_id[n_dx]
+            nt_type = stats.mode(n_types)
+            nt_sign[i] = nt_sign_index[nt_type.mode]
+            nt_ids[i] = nt_type.mode
         
     NT_list = ['gaba', 'ACh', 'Glu', '5HT', 'Oct',  'DA', 'NA']
     neur_dicts = dict({'Neur_names':tan_names, 'NT_sign':nt_sign, 'NT_id':nt_ids, 'NT_list': NT_list})
@@ -475,7 +492,7 @@ t_names = sim_output['TypesSmall']
 plt.xticks(np.linspace(0,len(t_names)-1,len(t_names)),labels= t_names,rotation=90)
 
 #%% FB5AB activation
-sim_output = run_sim_act(['FB5AB'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],3)
+sim_output = run_sim_act(['FB5AB'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],4)
 tsim = sim_output['MeanActivityType']
 ts_norm = tsim[:,non_mbon]
 t_norm = np.max(np.abs(ts_norm),axis=1)
@@ -496,14 +513,14 @@ plt.imshow(tsim,vmax=0.01,vmin=-0.01,aspect='auto',interpolation='none',cmap='Gr
 t_names = sim_output['TypesSmall']
 plt.xticks(np.linspace(0,len(t_names)-1,len(t_names)),labels= t_names,rotation=90)
 #%% Compare gamma3 with gamma 4/5
-sim_output_g45 = run_sim_act(['MBON21','MBON05','MBON01','MBON29','MBON27','MBON24'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],3)
+sim_output_g45 = run_sim_act(['MBON21','MBON05','MBON01','MBON29','MBON27','MBON24'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],4)
 sim_output_g3 = run_sim_act(['MBON30','MBON33','MBON08','MBON09'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],3)
-sim_output_g23 = run_sim_act(['MBON30','MBON33','MBON08','MBON09','MBON12','MBON35','MBON32','MBON34','MBON20','MBON25'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],3)
+sim_output_g23 = run_sim_act(['MBON30','MBON33','MBON08','MBON09','MBON12','MBON35','MBON32','MBON34','MBON20','MBON25'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],4)
 x = sim_output_g45['MeanActivityType'][1,:]
 y = sim_output_g3['MeanActivityType'][1,:]
 #%% gamma 4/5, b1, b1' and b2 and b2'
-sim_output_g45_plus = run_sim_act(['MBON21','MBON05','MBON01','MBON29','MBON27','MBON24','MBON10','MBON26','MBON06','MBON02'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],3)
-tsim = sim_output['MeanActivityType']
+sim_output_g45_plus = run_sim_act(['MBON21','MBON05','MBON01','MBON29','MBON27','MBON24','MBON10','MBON26','MBON06','MBON02'],['MBON.*','FB.*','hDelta.*','FC.*','PFL.*','vDelta.*','PFN.*'],4)
+tsim = sim_output_g45_plus['MeanActivityType']
 plt.imshow(tsim,vmax=0.01,vmin=-0.01,aspect='auto',interpolation='none',cmap='Greys_r')
 t_names = sim_output['TypesSmall']
 plt.xticks(np.linspace(0,len(t_names)-1,len(t_names)),labels= t_names,rotation=90)
@@ -662,7 +679,7 @@ plt.ylabel('Norm activity Gamma 2 3')
 plt.title('1st Iteration')
 
 plt.rcParams['pdf.fonttype'] = 42 
-plt.savefig(savedir +savename +'.pdf', format='pdf')
+#plt.savefig(savedir +savename +'.pdf', format='pdf')
 plt.show()
 #%% Plot 2nd iteration against one another
 savedir = 'C:\\Users\\dowel\\Documents\\PostDoc\\ConnectomeMining\\ActivationSimulations\\'
@@ -681,6 +698,7 @@ colours = np.array([[117,112,179],
 [102,166,30],
 [230,171,2]])/255
 type_names = ['FC','hDelta','vDelta','PFL']
+type_names = ['FB']
 for it,ty in enumerate(type_names):
     dx  = [i for i,t in enumerate(sim_output_g3['TypesSmall'][non_mbon]) if ty in t]
     plt.scatter(x[dx],y[dx],zorder=2,c=colours[it,:])
@@ -690,8 +708,8 @@ plt.ylim([-1.1, 1.1])
 
 ldx = np.where(np.logical_or(abs(x)>0.2, abs(y)>0.2))
 for i in ldx[0]:
-    if 'FB' in tan_names[i]:
-        continue
+    # if 'FB' in tan_names[i]:
+    #     continue
     plt.text(x[i],y[i],tan_names[i],fontsize=8)
 
 

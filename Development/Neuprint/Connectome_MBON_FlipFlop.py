@@ -96,7 +96,7 @@ import bz2
 
 def get_NT_identity(body_ids):
     print('Loading NT dataset')
-    filepath = 'C:\\Users\\dowel\\Documents\\PostDoc\\ConnectomeMining\\hemibrain-v1.2-tbar-neurotransmitters.feather.bz2'
+    filepath = 'D:\\ConnectomeData\\Neurotransmitters\\hemibrain-v1.2-tbar-neurotransmitters.feather.bz2'
 
     with bz2.open(filepath, 'rb') as bz2_file:
         # Read the decompressed binary data
