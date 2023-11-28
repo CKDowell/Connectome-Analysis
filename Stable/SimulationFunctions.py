@@ -88,8 +88,25 @@ class sim_functions:
             nt_type = stats.mode(n_types)
             nt_sign[i] = nt_sign_index[nt_type.mode]
             nt_ids[i] = nt_type.mode
-            
         NT_list = ['gaba', 'ACh', 'Glu', '5HT', 'Oct',  'DA', 'NA']
+        
+        # Ammend list to correct for known errors in synapse type assignment
+        # This list is quite extensive and it could be worth doing a comparison to the flywire data
+        # Worth reading the paper
+        n_2_correct = ['FB5AB','hDeltaC','hDeltaJ']
+        n_2_type = ['ACh','ACh','ACh']
+        n_2_index = [1,1,1]
+        for i,n in enumerate(n_2_correct):
+            t_dx = tan_names==n
+            sn_id = np.in1d(NT_list,n_2_type[i]).astype(int)
+            snx = [ir for ir,r in enumerate(sn_id) if r>0]
+            nt_sign[t_dx] = nt_sign_index[snx[0]]
+            nt_ids[t_dx] = n_2_index[i]
+            
+            
+        
+        
+       
         neur_dicts = dict({'Neur_names':tan_names, 'NT_sign':nt_sign, 'NT_id':nt_ids, 'NT_list': NT_list})
         print('Done')
         return neur_dicts
