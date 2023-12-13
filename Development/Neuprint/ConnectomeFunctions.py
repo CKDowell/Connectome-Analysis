@@ -12,6 +12,10 @@ c.fetch_version()
 from neuprint import fetch_neurons, fetch_adjacencies, NeuronCriteria as NC
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering 
+from neuprint import merge_neuron_properties
+from neuprint.utils import connection_table_to_matrix
+
+
 def top_inputs(names):
     # Gets names of top input types
     criteria = NC(type=names)
@@ -113,6 +117,30 @@ def input_output_matrix(nname):
                     out_array = np.append(out_array,add_array,axis=1)
                     out_array[i,-1:] = t_outputs[r]
     return out_types, in_types, in_array, out_array, types_u
+
+def con_matrix_inputs(nname):
+    out_types, in_types, in_array, out_array, types_u = input_output_matrix(nname)
+    #out_types_all, in_types_all, in_array_all, out_array_all, types_u_all = input_output_matrix(in_types)
+    neuron_df, conn_df = fetch_adjacencies(NC(type=in_types), NC(type=in_types))
+    con_matrix = np.zeros([len(in_types), len(in_types)])
+    
+    # Prefer to use a for loop so that I absolutely know which is which in the right order
+    
+    for i,t in enumerate(in_types):
+        print(i)
+        t1dx = neuron_df['type']==t
+        t1s = pd.Series.to_numpy(neuron_df['bodyId'][t1dx])
+        t1c_dx = np.in1d(pd.Series.to_numpy(conn_df['bodyId_pre']),t1s)
+        
+        for i2,t2 in enumerate(in_types):
+            t2dx = neuron_df['type']==t2
+            t2s = pd.Series.to_numpy(neuron_df['bodyId'][t2dx])
+            t2c_dx = np.in1d(pd.Series.to_numpy(conn_df['bodyId_post']),t2s)
+            dx = t1c_dx&t2c_dx
+            ws = pd.Series.to_numpy(conn_df['weight'][dx])
+            con_matrix[i,i2] = np.sum(ws)
+    
+    return con_matrix
                 
 def hier_cosine(indata,distance_thresh):
     in_shape = np.shape(indata)

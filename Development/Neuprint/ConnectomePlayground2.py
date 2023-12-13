@@ -20,7 +20,7 @@ from neuprint import queries
 # Create array where columns are inputs/outputs and rows are TNs
 
 
-out_types, in_types, in_array, out_array, Tan_Names = cf.input_output_matrix('FB.*')
+neuron_df, conn_df = fetch_adjacencies(NC(type='MBON.*'), NC(type='FB.*'))
 
 #%% 
 # %%

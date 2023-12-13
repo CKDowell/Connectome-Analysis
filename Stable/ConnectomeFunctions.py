@@ -12,6 +12,9 @@ c.fetch_version()
 from neuprint import fetch_neurons, fetch_adjacencies, NeuronCriteria as NC
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering 
+from scipy.cluster.hierarchy import leaves_list
+from Stable.SimulationFunctions import sim_functions as sf
+#%%
 def top_inputs(names):
     # Gets names of top input types
     criteria = NC(type=names)
@@ -63,8 +66,55 @@ def top_outputs(names):
         ncells[i] = np.sum(ma_n)
     return typelib_u, t_outputs, ncells
 
-def input_output_matrix(nname):
-    criteria = NC(type = nname)
+def defined_in_out(names1,names2):
+    # Access neuprint data
+    neuron_df, conn_df = fetch_adjacencies(NC(type=names1),NC(type=names2))
+    nd_simple,c_simple = fetch_neurons(NC(type=names1))
+    out_simple,co_simple = fetch_neurons(NC(type=names2))
+    # Get Pre-syn types
+    types_u = np.unique(nd_simple['type'])
+    #Get post-syn types
+    typesO_u = np.unique(out_simple['type'])
+    # Get NT identity
+    S = sf()
+    nt_dict = S.set_neur_dicts(types_u)
+    
+    con_mat_full = np.zeros([len(types_u), len(out_simple['type'])],'float64')
+    con_mat_full_sign = np.zeros([len(types_u), len(out_simple['type'])],'float64')
+    
+    for i,t in enumerate(types_u):
+        bids = nd_simple['bodyId'][nd_simple['type']==t]
+        dx = np.in1d(conn_df['bodyId_pre'],bids)
+        
+        bid_post = conn_df['bodyId_post'][dx]
+        
+        weights = pd.Series.to_numpy(conn_df['weight'][dx])
+        
+        for ib,b in enumerate(bid_post):
+            bdx = out_simple['bodyId']==b
+            con_mat_full[i,bdx] = con_mat_full[i,bdx]+weights[ib]
+        
+        ns = nt_dict['NT_sign'][i]
+        con_mat_full_sign[i,:] = con_mat_full[i,:]*ns
+        
+    con_mat = np.zeros([len(types_u), len(typesO_u)],'float64')
+    con_mat_sign = np.zeros([len(types_u), len(typesO_u)],'float64')
+    
+    for i, t in enumerate(typesO_u):
+        dx = out_simple['type']==t
+        con_mat[:,i] = np.mean(con_mat_full[:,dx],axis=1).flatten()
+        con_mat_sign[:,i] = np.mean(con_mat_full_sign[:,dx],axis=1).flatten()
+    
+    out_dict = {'in_types':types_u,'out_types': typesO_u,'con_mat': con_mat,
+                'con_mat_sign': con_mat_sign, 'con_mat_full': con_mat_full,
+                'con_mat_full_sign': con_mat_full_sign}
+    
+    return out_dict
+    
+    
+    
+def input_output_matrix(names):
+    criteria = NC(type = names)
     neuron_df, roi_counts_df = fetch_neurons(criteria)
     types = neuron_df['type']
     types = pd.Series.to_numpy(types)
@@ -113,22 +163,63 @@ def input_output_matrix(nname):
                     out_array = np.append(out_array,add_array,axis=1)
                     out_array[i,-1:] = t_outputs[r]
     return out_types, in_types, in_array, out_array, types_u
+
+def con_matrix_iputs(names):
+    out_types, in_types, in_array, out_array, types_u = input_output_matrix(names)
+    neuron_df, conn_df = fetch_adjacencies(NC(type=in_types), NC(type=in_types))
+    con_matrix = np.zeros([len(in_types), len(in_types)])
+
+    # Prefer to use a for loop so that I absolutely know which is which in the right order
+
+    for i,t in enumerate(in_types):
+        print(i)
+        t1dx = neuron_df['type']==t
+        t1s = pd.Series.to_numpy(neuron_df['bodyId'][t1dx])
+        t1c_dx = np.in1d(pd.Series.to_numpy(conn_df['bodyId_pre']),t1s)
+        
+        for i2,t2 in enumerate(in_types):
+            t2dx = neuron_df['type']==t2
+            t2s = pd.Series.to_numpy(neuron_df['bodyId'][t2dx])
+            t2c_dx = np.in1d(pd.Series.to_numpy(conn_df['bodyId_post']),t2s)
+            dx = t1c_dx&t2c_dx
+            ws = pd.Series.to_numpy(conn_df['weight'][dx])
+            con_matrix[i,i2] = np.sum(ws)
+    return con_matrix
                 
 def hier_cosine(indata,distance_thresh):
     in_shape = np.shape(indata)
     
-    sim_mat = np.empty([in_shape[0], in_shape[0]])
+    sim_mat = np.zeros([in_shape[0], in_shape[0]],dtype='float64')
     ilen = int(in_shape[0])
     for i in range(in_shape[0]):
         x = indata[i,:]
         for z in range(in_shape[0]):
             y = indata[z,:]
             sim_mat[i,z] = np.dot(x,y)/(np.linalg.norm(x)*np.linalg.norm(y))
-
+            if np.isnan(sim_mat[i,z]):
+                print('i',i)
+                print('z',z)
     d_mat = 1-sim_mat
 
-    cluster = AgglomerativeClustering(affinity='precomputed', linkage='single',
-          
+    cluster = AgglomerativeClustering(affinity='precomputed', linkage='single', 
                                     compute_distances = True, distance_threshold =distance_thresh, n_clusters = None)
     cluster.fit(d_mat)
     return cluster, d_mat
+
+def linkage_order(model):
+    counts = np.zeros(model.children_.shape[0])
+    n_samples = len(model.labels_)
+    for i, merge in enumerate(model.children_):
+        current_count = 0
+        for child_idx in merge:
+            if child_idx < n_samples:
+                current_count += 1  # leaf node
+            else:
+                current_count += counts[child_idx - n_samples]
+        counts[i] = current_count
+
+    linkage_matrix = np.column_stack(
+        [model.children_, model.distances_, counts]
+    ).astype(float)
+    z = leaves_list(linkage_matrix)
+    return z
