@@ -148,13 +148,22 @@ class FW_sim:
         syn_count_sgn = df_small['syn_cnt_sgn'].values
         pre_root_id_unique = df_small['pre_root_id_unique'].values
         post_root_id_unique = df_small['post_root_id_unique'].values
-        metdx = np.isin(df_meta['root_id'],vals)
+        
+        # this order may not be right
+        metdx = np.empty(np.shape(vals),dtype=int)
+        for i,v in enumerate(vals):
+            metdx[i] = np.where(df_meta==['root_id'],vals)
+        #metdx = np.isin(df_meta['root_id'],vals)
         df_meta = df_meta.iloc[metdx]
         
         # form unscaled sparse matrix
-        C_orig = csr_matrix((syn_count_sgn, (post_root_id_unique, pre_root_id_unique)), shape=(n, n), dtype='float64')
-        # need to normalise matrix
+        C_orig = csr_matrix((syn_count_sgn, (pre_root_id_unique,post_root_id_unique)), shape=(n, n), dtype='float64')
+        # has pre neuron as row and post as 
         
+        # need to normalise matrix
+        col_divide = np.sum(np.abs(C_orig),axis=0)
+        col_divide[col_divide==0] = 1 #gets rid of dividing by zero, will not make a difference 
+        C_orig = C_orig/col_divide
         
         # dictionary to go back to original ids of cells
         conv_dict_rev = {v:k for k, v in conv_dict.items()}
@@ -197,7 +206,8 @@ class FW_sim:
         # function performs the simulation
         alen = np.shape(act_vec)
         C_mat = self.C_mat
-        activity_matrix = np.zeros([alen[0],alen[1]],dtype='float64')
+        activity_matrix = np.zeros([alen[0],alen[1]+1],dtype='float64')
+        activity_matrix[:,0] = act_vec[:,0]
         for i in range(alen[1]):
             print('Iteration',i)
             av = act_vec[:,i]
@@ -207,7 +217,7 @@ class FW_sim:
             av_s = csr_matrix(av,shape=(1,alen[0]),dtype='float64') #need to make matrix sparse
             am = av_s @ C_mat
             
-            activity_matrix[:,i] = am.todense()
+            activity_matrix[:,i+1] = am.todense()
             if i<alen[1]-1:
                 act_vec[:,i+1] = act_vec[:,i+1]+activity_matrix[:,i]
                 
@@ -227,7 +237,7 @@ fw.initialise_network(choice,'small')
 fw.simulation_NP_class('FB5AB',5,10)
 #%%
 import matplotlib.pyplot as plt
-plt.imshow(fw.activity_matrix,interpolation='none',aspect='auto',vmin=-100,vmax=100)
+plt.imshow(fw.activity_matrix,interpolation='none',aspect='auto',vmin=-0.1,vmax=0.1)
 
 #%%
 df = fw.connections.copy()

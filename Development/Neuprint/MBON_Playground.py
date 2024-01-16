@@ -92,6 +92,40 @@ plt.rcParams['pdf.fonttype'] = 42
 savedir = "Y:\Data\Connectome\Connectome Mining\MBON_outputs"
 savefile = os.path.join(savedir,'MBON_FB.pdf')
 plt.savefig(savefile)
+#%% Save top 5 inputs
+plt.figure(figsize=(10,4))
+ax2 = plt.subplot()
+t5 = np.sum(np.abs(con_plot),axis=1)
+order =(-t5).argsort()[:10]
+con_plotT5 = con_plot[order,:]
+fbcnt = np.max(np.abs(con_plotT5),axis=0)
+fbdx = fbcnt>25
+con_plotT5 = con_plotT5[:,fbdx]
+
+plt.imshow(con_plotT5,vmin= -100,vmax= 100,interpolation=None,aspect='auto',cmap='coolwarm')
+yn = ynames_new[order]
+yn_o = ynames[order]
+yt = np.linspace(0,9,10)
+plt.yticks(yt,labels=yn)
+for i, ytick in enumerate(ax2.get_yticklabels()):
+    i
+    tmb = yn_o[i]
+    dx = mb_prop.MBON_dict['MBONs']==tmb
+    val = mb_prop.MBON_dict['Valence'][dx]+1
+    
+    ytick.set_color(cmap[val,:])
+xtl = xnames[fbdx]
+plt.xticks(np.linspace(0,len(xtl)-1,len(xtl)),xtl,rotation=20)
+plt.xlabel('Tangential post-synapse',fontsize=15)
+plt.ylabel('MBON pre-synapse',fontsize=15)
+plt.subplots_adjust(bottom=0.2)
+plt.subplots_adjust(left=0.25)
+plt.colorbar(shrink=0.75,fraction=0.2,ticks = [-100,-50,0,50,100])
+
+plt.show()
+savedir = "Y:\Data\Connectome\Connectome Mining\MBON_outputs"
+savefile = os.path.join(savedir,'MBON_FB_top10.png')
+plt.savefig(savefile)
 #%% Get con matrix for Tangential outputs
 con_dict2 = defined_in_out(xnames,xnames)
 #%%

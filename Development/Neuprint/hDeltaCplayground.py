@@ -281,15 +281,22 @@ hdeltas = ['hDeltaA', 'hDeltaB', 'hDeltaC', 'hDeltaD', 'hDeltaE', 'hDeltaF',
            'hDeltaG', 'hDeltaH', 'hDeltaI', 'hDeltaJ', 'hDeltaK', 'hDeltaL',
            'hDeltaM']
 savedir = "Y:\Data\Connectome\Connectome Mining\hDeltaIN_OUT"
+FB_out = ['FB4P_b','FB4C','FB4R','FB4Q_a','FB5L','FB5I','FB4X',
+'FB6N','FB4I','FB4K','FB4J','FB6W','FB4F_b','FB5O','FB5E','FB4P_a','FB4H',
+'FB4G','FB5C','FB5AA','FB5D']
+FB_in = ['FB5J','FB4A','FB1H','FB6P','FB5X','FB4L','FB6R','FB4Y','FB5F','FB5AB']
+
 for h in hdeltas:
     
     h_delta_ax_den = ax_dendrite_hDelta(h)
+    h_all = h_delta_ax_den['AxonDendriteAll']
+    h_s = np.shape(h_all)
     plt_mat = h_delta_ax_den['AxonDendrite'].copy()
     plt_mat[:,0] = plt_mat[:,0]/np.sum(h_delta_ax_den['AxonDendrite'],axis= 1)
     plt_mat[:,1] = plt_mat[:,1]/np.sum(h_delta_ax_den['AxonDendrite'],axis= 1)
     I = np.argsort(plt_mat[:,0])
     plt_mat = plt_mat[I,:]
-    mndx = np.sum(h_delta_ax_den['AxonDendrite'][I],axis= 1)>100
+    mndx = np.sum(h_delta_ax_den['AxonDendrite'][I],axis= 1)>(10*h_s[2])
     ylab = h_delta_ax_den['Post_types'][I]
     ylab = ylab[mndx]
     
@@ -297,9 +304,22 @@ for h in hdeltas:
     
     
     plt.figure(figsize=(5,20))
+    ax = plt.subplot()
     plt.imshow(plt_mat[mndx,:],vmin=0,vmax=1,interpolation='None',aspect='auto')
-    
+    plt.subplots_adjust(left=0.2)
     plt.yticks(np.linspace(0,len(ylab)-1,len(ylab)),labels=ylab)
+    
+    for i, ytick in enumerate(ax.get_yticklabels()):
+        print(ytick)
+        if ylab[i] in FB_out:
+            print('yas')
+            ytick.set_color(np.array([44, 101, 50],dtype=float)/255)
+        elif ylab[i] in FB_in:
+            ytick.set_color(np.array([142, 28, 85],dtype=float)/255)
+        
+    
+    
+    
     plt.ylabel('Input Neuron')
     plt.title(h)
     plt.xticks([0,1],labels =['Axon','Dendrite'])
