@@ -201,7 +201,7 @@ def hier_cosine(indata,distance_thresh):
                 print('z',z)
     d_mat = 1-sim_mat
 
-    cluster = AgglomerativeClustering(affinity='precomputed', linkage='single', 
+    cluster = AgglomerativeClustering(linkage='single', 
                                     compute_distances = True, distance_threshold =distance_thresh, n_clusters = None)
     cluster.fit(d_mat)
     return cluster, d_mat

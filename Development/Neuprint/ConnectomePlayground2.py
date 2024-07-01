@@ -6,11 +6,10 @@ Created on Fri Sep 22 13:32:27 2023
 """
 
 #%% Load up modules
-import ConnectomeFunctions as cf
+import Stable.ConnectomeFunctions as cf
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import umap
 from sklearn.cluster import AgglomerativeClustering 
 from scipy.cluster.hierarchy import dendrogram, leaves_list
 #%% Tangential neuron analysis
@@ -269,6 +268,9 @@ plot_dendrogram(cluster_in,truncate_mode = None, color_threshold = 0.3,labels = 
 plt.xticks(fontsize = 10)
 plt.show()
 #%% Input heatmap
+
+
+
 cluster_heat(cluster_in,Tan_Names,dmat_in,1)
 plt.xticks(fontsize = 6)
 plt.yticks(fontsize = 6)
