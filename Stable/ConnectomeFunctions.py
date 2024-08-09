@@ -68,6 +68,7 @@ def top_outputs(names):
 
 def defined_in_out(names1,names2):
     # Access neuprint data
+    
     neuron_df, conn_df = fetch_adjacencies(NC(type=names1),NC(type=names2))
     nd_simple,c_simple = fetch_neurons(NC(type=names1))
     out_simple,co_simple = fetch_neurons(NC(type=names2))
@@ -99,19 +100,50 @@ def defined_in_out(names1,names2):
         
     con_mat = np.zeros([len(types_u), len(typesO_u)],'float64')
     con_mat_sign = np.zeros([len(types_u), len(typesO_u)],'float64')
-    
+    con_mat_sum = np.zeros([len(types_u), len(typesO_u)],'float64')
+    type_count = np.array([])
     for i, t in enumerate(typesO_u):
         dx = out_simple['type']==t
+        type_count = np.append(type_count,np.sum(dx))
         con_mat[:,i] = np.mean(con_mat_full[:,dx],axis=1).flatten()
         con_mat_sign[:,i] = np.mean(con_mat_full_sign[:,dx],axis=1).flatten()
-    
+        con_mat_sum[:,i] = np.sum(con_mat_full[:,dx],axis=1).flatten()
     out_dict = {'in_types':types_u,'out_types': typesO_u,'con_mat': con_mat,
+                'con_mat_sum': con_mat_sum,
                 'con_mat_sign': con_mat_sign, 'con_mat_full': con_mat_full,
                 'con_mat_full_sign': con_mat_full_sign}
     
     return out_dict
     
+def defined_in_out_full(names1,names2):
+    neuron_df, conn_df = fetch_adjacencies(NC(type=names1),NC(type=names2))
+    #nd_simple,c_simple = fetch_neurons(NC(type=names1))
+    #out_simple,co_simple = fetch_neurons(NC(type=names2))
     
+    conmat = np.zeros((np.shape(neuron_df)[0],np.shape(neuron_df)[0]))
+    nids = neuron_df['bodyId']
+    pre_ids = conn_df['bodyId_pre'].to_numpy()
+    post_ids = conn_df['bodyId_post'].to_numpy()
+    cons = conn_df['weight'].to_numpy()
+    for i, n in enumerate(pre_ids):
+        dx1 = np.where(nids==n)[0]
+        dx2 = np.where(nids==post_ids[i])[0]
+        conmat[dx1,dx2] = cons[i]
+    
+    types_u = np.unique(neuron_df['type'])
+    
+    
+    
+    # Get NT identity
+    S = sf()
+    nt_dict = S.set_neur_dicts(types_u)
+    conmat_sign = conmat.copy()
+    for i,n in enumerate(types_u):
+        nt_sign = nt_dict['NT_sign'][i]
+        dx = neuron_df['type']==n
+        conmat_sign[dx,:] = conmat_sign[dx,:]*nt_sign
+    out_dict = {'conmat':conmat,'conmat_sign':conmat_sign,'NTdict': nt_dict,'nDF': neuron_df}
+    return out_dict 
     
 def input_output_matrix(names):
     criteria = NC(type = names)

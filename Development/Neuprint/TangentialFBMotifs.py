@@ -33,6 +33,8 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering 
 from scipy.cluster.hierarchy import dendrogram, leaves_list
+import os
+plt.rcParams['pdf.fonttype'] = 42 
 #%% Tangential neuron analysis
 from neuprint import fetch_neurons, NeuronCriteria as NC
 from neuprint import queries 
@@ -84,13 +86,14 @@ out_dict  = cf.defined_in_out(['FB.*','hDelta.*','FC.*','PF.*','vDelta.*'],['FB.
 #out_dict = cf.defined_in_out(['pC.*'],['pC.*'])
 #%%
 cm = out_dict['con_mat']
-plt.imshow(cm,vmax=100,aspect='auto',interpolation='none')
+plt.imshow(cm,vmax=500,aspect='auto',interpolation='none')
 ty = out_dict['in_types']
 tyo = out_dict['out_types']
 plt.xticks(np.arange(0,len(ty)),labels=ty,rotation=90,fontsize=8)
 
 plt.yticks(np.arange(0,len(ty)),labels=tyo,fontsize=8)
 #%%
+savedir= "Y:\\Data\\Connectome\\Connectome Mining\\TangentialClustering\\July24"
 cluster_cm,dm_cm = cf.hier_cosine(cm,0.7)
 z_cm = cf.linkage_order(cluster_cm)
 plot_cm = cm[z_cm,:]
@@ -99,9 +102,9 @@ plot_cm = plot_cm[:,z_cm]
 ty = out_dict['in_types'][z_cm]
 tyo = out_dict['out_types'][z_cm]
 
-
+plt.figure(figsize=(15,15))
 plt.imshow(plot_cm,vmax=100,vmin=0,interpolation='none')
-plt.xticks(np.arange(0,len(ty)),labels=ty,rotation=90,fontsize=8)
+plt.xticks(np.arange(0,len(ty)),labels=ty,rotation=90,fontsize=5)
 ax = plt.subplot()
 
 FBlist = ['FB6P','FB5J','FB6H','FB5H','FB4M','FB4L','FB4R','FB4X','FB4C','FB5I','FB5AB','FC2A','FC2C','FC2B','PFL3','hDeltaC','hDeltaB','hDeltaJ','FB4P_b']
@@ -113,7 +116,7 @@ for i,xtick in enumerate(L):
         xtick.set_color('r')
     elif 'hDelta' in ty[i]:
         xtick.set_color('b')
-plt.yticks(np.arange(0,len(ty)),labels=ty,fontsize=6)
+plt.yticks(np.arange(0,len(ty)),labels=ty,fontsize=5)
 plt.gcf().subplots_adjust(bottom=0.2) 
 
 tdx = [i for i,it in enumerate(ty) if it in FBlist]
@@ -126,7 +129,15 @@ for i,xtick in enumerate(ax.get_yticklabels()):
 
 plt.plot([0,len(ty)],[0,len(ty)],color='w',linestyle='--')
 plt.xlim([-0.5,len(ty)-0.5])
-#plt.ylim([-0.5,len(ty)])
+plt.ylim([-0.5,len(ty)])
+plt.colorbar()
+#plt.savefig(os.path.join(savedir,'FSB_HierOrder.pdf'))
+#%% save data
+import pickle
+save_dict = {'con_matrix':cm,'order':z_cm,'data_all':out_dict}
+savename = "Y:\\Data\\Connectome\\Hackathon\\connectivity_FSB.pkl"
+with open(savename,'wb') as fp:
+    pickle.dump(save_dict,fp)
 #%%
 def x_tick_colours(xt,xtlabs,types,typecolours,**kwargs):
     plt.xticks(xt,labels=xtlabs,**kwargs)
