@@ -14,7 +14,7 @@ import numpy as np
 client = caveclient.CAVEclient()
 client.auth.setup_token(make_new=False)
 #%%
-my_token = "942d1c4bd3683cb7c09302a1d8430bb6"
+my_token = ""
 client.auth.save_token(token=my_token,overwrite=True)
 #%% 
 datastack_name = "flywire_fafb_public"
