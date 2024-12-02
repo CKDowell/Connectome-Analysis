@@ -151,13 +151,14 @@ def input_output_matrix(names):
     types = neuron_df['type']
     types = pd.Series.to_numpy(types)
     types_u = np.unique(types)
-
+    
     
     for i, t in  enumerate(types_u):
         print(str(i+1) + '/' + str(len(types_u)))
         
         # Inputs
         typelib, t_inputs, ncells = top_inputs(t)
+        
         if i==0:
             in_types = typelib
             in_array = np.empty([len(types_u), len(t_inputs)])
