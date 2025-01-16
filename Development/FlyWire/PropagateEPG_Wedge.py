@@ -291,31 +291,3 @@ ug.save_pick(savedict,os.path.join(savedir,'Delta7_GlomAdv.pkl'))
 #%%
 
 
-
-for i in range(3):
-    clumini = np.append(d7_pb_out[:,:,i],np.cos(input_thetas_norm[:,np.newaxis]),axis=1)
-    clumini = np.append(clumini,np.sin(input_thetas_norm[:,np.newaxis]),axis=1)
-    if i==0:
-        cludata7 = clumini
-    else:
-        cludata7 = np.append(cludata7,clumini,axis=0)
-
-
-
-
-
-
-
-
-cludata7 =( cludata7-np.mean(cludata7,axis=0))/np.std(cludata7,axis=0)
-cludata7[:,3:] = cludata7[:,3:]*2
-km = KMeans(n_clusters=18).fit(cludata7)
-fig = plt.figure()
-ax = fig.add_subplot(projection='3d')
-
-ax.scatter(cludata7[:,0],cludata7[:,1],cludata7[:,2],c=np.append(input_thetas_norm,np.append(input_thetas_norm,input_thetas_norm)),cmap='coolwarm')
-ax.scatter(km.cluster_centers_[:,0],km.cluster_centers_[:,1],km.cluster_centers_[:,2],color='k')
-#  2.a Via the standard glomerulous notation
-#  2.b Via the theta values of the EPG neurons themselves
-
-#https://scikit-learn.org/1.5/modules/manifold.html
