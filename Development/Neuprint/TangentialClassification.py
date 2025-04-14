@@ -59,13 +59,15 @@ plt.rcParams['pdf.fonttype'] = 42
 from neuprint import fetch_neurons, NeuronCriteria as NC
 from neuprint import queries 
 #%%
-out_types, in_types, in_array, out_array, Names = cf.input_output_matrix(['FB.*'])
-
+out_types, in_types, in_array, out_array, Names,tcounts = cf.input_output_matrix(['FB.*'])
+in_array[np.isnan(in_array)] = 0
+out_array = in_array/tcounts[:,np.newaxis]
+in_array = in_array/tcounts[:,np.newaxis]
 #%%
 synthresh  = 30
 # Initialise array
 
-v_names = ['PFN','PFR','PFG','PFL','hDelta','vDelta','FB','FS','FC2','FC1','self']
+v_names = ['PFN','PFR','PFG','PFL','hDelta','vDelta','FB','FS','FR','FC2','FC1','self']
 # For now not considering hDelta axon versus dendrite
 motmat = np.zeros((len(Names),len(v_names)*2))
 for i,n in enumerate(Names):
@@ -136,3 +138,41 @@ plt.figure()
 plt.imshow(motmat2[z_in,:],aspect='auto',interpolation='none',cmap='Blues')
 plt.xticks(np.arange(0,len(tick_names)),labels=tick_names,rotation=90)
 plt.yticks(np.arange(0,len(nnames[z_in])),labels=nnames[z_in],fontsize=8)
+#%% 
+from Stable.BasicNeuronProperties import neuron_properties as NP
+npr = NP()
+mbondx = [i for i,e in enumerate(in_types) if 'MBON' in e]
+MBON_names = in_types[mbondx]
+MBON_in  = in_array[:,mbondx]
+mbon_in_sum = np.sum(MBON_in,axis=1)
+i = np.argsort(-mbon_in_sum)
+num_neur = 20
+for m in range(num_neur):
+    tmn = MBON_in[i[m],:]
+    tdx = tmn>0
+    tmnames = MBON_names[tdx]
+    print(tmnames)
+    tmnw =tmn[tdx]
+    IT = np.argsort(-tmnw)
+    tmnw = tmnw[IT]
+    tmnames = tmnames[IT]
+    xoff= 0
+    yoff=0
+    for it,t in enumerate(tmnw):
+        yoff = yoff+0.075
+        val = npr.MBON_valence_query(tmnames[it])[0]
+        if val==-1:
+            colour = np.array([235,0,255])/255
+        elif val==1:
+            colour= np.array([63,236,158])/255
+        plt.fill_between([xoff,t+xoff],[-m+0.25-yoff,-m+0.25-yoff],[-m+0.15-yoff,-m+0.15-yoff],color=colour)
+        if t>20:
+            plt.text(np.mean([xoff,t+xoff]),-m+0.4-yoff,tmnames[it],fontsize=8,horizontalalignment='center')
+        
+        #plt.fill_between([xoff,t+xoff],[-m+0.25,-m+0.25],[-m-0.25,-m-0.25],color=colour)
+       #plt.plot([xoff+0.5,xoff+0.5],[-m+0.25,-m-0.25],color='k')
+        xoff = t+xoff
+plt.yticks(-np.arange(0,num_neur),labels=Names[i[:num_neur]])
+plt.xlabel('Mean synapse count')
+savedir = r'Y:\Presentations\2025\02_BSV\MB'
+plt.savefig(os.path.join(savedir,'MBON_tan.pdf'))

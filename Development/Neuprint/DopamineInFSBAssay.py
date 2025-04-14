@@ -22,6 +22,7 @@ import os
 #%%
 da_neurons = ['FB4R','FB2A','FB4M','FB4L','FB5H','FB6H','FB7B']
 pltdir = 'Y:\Presentations\\2024\\MarchLabMeeting\\Figures'
+da_neurons = ['FB6H']
 plt.close('all')
 for dn in da_neurons:
     neuron_criteria = NC(status='Traced', type=dn, cropped=False)

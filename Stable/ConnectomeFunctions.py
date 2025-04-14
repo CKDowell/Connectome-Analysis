@@ -150,7 +150,7 @@ def input_output_matrix(names):
     neuron_df, roi_counts_df = fetch_neurons(criteria)
     types = neuron_df['type']
     types = pd.Series.to_numpy(types)
-    types_u = np.unique(types)
+    types_u,tcounts = np.unique(types,return_counts=True)
     
     
     for i, t in  enumerate(types_u):
@@ -195,7 +195,7 @@ def input_output_matrix(names):
                     add_array = np.zeros([len(types_u),1])
                     out_array = np.append(out_array,add_array,axis=1)
                     out_array[i,-1:] = t_outputs[r]
-    return out_types, in_types, in_array, out_array, types_u
+    return out_types, in_types, in_array, out_array, types_u,tcounts
 
 def con_matrix_iputs(names):
     out_types, in_types, in_array, out_array, types_u = input_output_matrix(names)

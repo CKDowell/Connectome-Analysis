@@ -39,4 +39,4 @@ def get_meshes(neuron):
     with open(savepath, 'w') as outfile:
         json.dump(ndict, outfile)
 #%%
-get_meshes(['FS1B'])
+get_meshes(['FB2A','FB4L','FB4M','FB5H','FB6H','FB7B'])

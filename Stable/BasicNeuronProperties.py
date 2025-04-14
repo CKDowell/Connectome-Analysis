@@ -9,6 +9,19 @@ import numpy as np
 class neuron_properties:
     def __init__(self):
         self.name = 'This'
+        
+    def MBON_valence_query(self,MBON):
+        self.MBON_compartment_valence()
+        mnames = self.MBON_dict['MBONs']
+        mdx = mnames==MBON
+        valence = self.MBON_dict['Valence'][mdx]
+        return valence
+    def MBON_compartment_query(self,MBON):
+        self.MBON_compartment_valence()
+        mnames = self.MBON_dict['MBONs']
+        mdx = mnames==MBON
+        comp = self.MBON_dict['Compartments_cat'][mdx]
+        return comp
     def MBON_compartment_valence(self):
         MBON_names = np.array(['MBON01', 'MBON02', 'MBON03', 'MBON04', 'MBON05', 'MBON06',
                'MBON07', 'MBON08', 'MBON09', 'MBON10', 'MBON11', 'MBON12', 'MBON13',
