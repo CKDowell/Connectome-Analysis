@@ -101,5 +101,67 @@ for i in cell_IDs:
 ax.set_aspect('equal', adjustable='box')
 plt.savefig(os.path.join(r'Y:\Presentations\2025\04_LabMeeting\hDeltaC','hDeltaC_Skeletons.pdf'))
     
+#%% FB5I
+
+cell_IDs = [720575940623649097,
+            720575940608783452]
+fi,ax =  plt.subplots()
+view = ('x','-y')
+for i in cell_IDs:
+    swc_dir = os.path.join(skeleton_dir,str(i)+'.swc')
+    neuron = navis.read_swc(swc_dir)
     
+    neuron.plot2d(color='k',linewidth=0.5,view=view,ax=ax,soma=False,alpha=0.5)
+
+ax.set_aspect('equal', adjustable='box')
+plt.savefig(os.path.join(r'Y:\Presentations\2025\05_GRC\skeletons','fb5i.pdf'))
+#%% Fb4R
+
+cell_IDs = [720575940620317564, 720575940606198473, 720575940625680784,
+       720575940627653502]
+fi,ax =  plt.subplots()
+view = ('x','-y')
+for i in cell_IDs:
+    swc_dir = os.path.join(skeleton_dir,str(i)+'.swc')
+    neuron = navis.read_swc(swc_dir)
     
+    neuron.plot2d(color='k',linewidth=0.5,view=view,ax=ax,soma=False,alpha=0.5)
+
+ax.set_aspect('equal', adjustable='box')
+plt.savefig(os.path.join(r'Y:\Presentations\2025\05_GRC\skeletons','fb4r.pdf'))
+
+#%% Fb4P_b
+cell_IDs = [720575940625703824, 720575940618295376, 720575940627357969,
+       720575940632862177, 720575940621811182, 720575940626316606,
+       720575940627038792]
+fi,ax =  plt.subplots()
+view = ('x','-y')
+for i in cell_IDs:
+    swc_dir = os.path.join(skeleton_dir,str(i)+'.swc')
+    neuron = navis.read_swc(swc_dir)
+    
+    neuron.plot2d(color='k',linewidth=0.5,view=view,ax=ax,soma=False,alpha=0.5)
+
+ax.set_aspect('equal', adjustable='box')
+plt.savefig(os.path.join(r'Y:\Presentations\2025\05_GRC\skeletons','fb4p_b.pdf'))
+
+#%% FC2B
+cell_IDs = [720575940631004728,720575940624611018,720575940614738956,
+            720575940623712656,720575940622942868,720575940618463960,
+            720575940637558618,720575940616968733,720575940636735198,
+            720575940620156795,720575940618133371,720575940623784231,
+            720575940625637562,720575940627162344,720575940628136809,
+            720575940614442090,720575940627740922,720575940619935152,
+            720575940619578608,720575940614530098,720575940622943731,
+            720575940622406260,720575940635530359,720575940624295096,
+            720575940625678650,720575940615326779,720575940628860476,720575940636229183]
+fi,ax =  plt.subplots()
+view = ('x','-y')
+for i in cell_IDs:
+    swc_dir = os.path.join(skeleton_dir,str(i)+'.swc')
+    neuron = navis.read_swc(swc_dir)
+    
+    neuron.plot2d(color='k',linewidth=0.5,view=view,ax=ax,soma=False,alpha=0.5)
+
+ax.set_aspect('equal', adjustable='box')
+plt.savefig(os.path.join(r'Y:\Presentations\2025\05_GRC\skeletons','FC2B.pdf'))

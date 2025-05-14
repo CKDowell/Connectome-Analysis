@@ -47,7 +47,7 @@ class fw_corrections:
         print('Loading Flywire data')
         
         # Connections
-        dpath = os.path.join(self.datapath ,'connections.csv')
+        dpath = os.path.join(self.datapath ,'connections_princeton_no_threshold.csv')
         self.connections = pd.read_csv(dpath)#read in
         
         # Neuron classification
@@ -63,18 +63,18 @@ class fw_corrections:
         print('Flywire data loaded')    
         # Loaded flywire data
         
-    def allocate_by_connections(self,NP_neuron):
+    def allocate_by_connections(self,NP_neuron,FW_neuron):
         # Standard variables
         
         # Neuprint connections
-        out_types, in_types, in_array, out_array, types_u = input_output_matrix(NP_neuron)
+        out_types, in_types, in_array, out_array, types_u,tcounts = input_output_matrix(NP_neuron)
         
         # Query neuprint for
         c = self.classes.copy() 
         o_pred = pd.Series.to_numpy(c['hemibrain_type'])
         
         # Check if already allocated
-        check = np.sum(o_pred=='FB4G')
+        check = np.sum(o_pred==FW_neuron)
         if check>0:
             print('Neuron already allocated in flywire!!')
             return 
@@ -86,7 +86,7 @@ class fw_corrections:
         for i,p in enumerate(o_pred):
             if pd.isnull(p):
                 continue
-            if NP_neuron in p:
+            if FW_neuron in p:
 
                 dx_neuron = np.append(dx_neuron,i)
         if len(dx_neuron)>0:
@@ -95,7 +95,7 @@ class fw_corrections:
             # Check connectivity
             # Get flywire connectivity matrix
             
-            
+            print(nids[dx_neuron])
             c_mat,df_meta = self.get_conmat(nids[dx_neuron])
             # Get connections to known types
             ht = pd.Series.to_numpy(df_meta['hemibrain_type'])
@@ -144,6 +144,7 @@ class fw_corrections:
             
             # Calculate correlations to input and output vectors
             for i in range(len(our_ndx)):
+                
                 # output
                 sp = stats.spearmanr(np_outvec[0,:],out_mat[i,:])
                 pr = stats.pearsonr(np_outvec[0,:],out_mat[i,:])
@@ -182,15 +183,15 @@ class fw_corrections:
         df = self.connections.copy()
         df_meta = self.classes.copy() 
 
-        df = df.groupby(['pre_root_id', 'post_root_id']).agg({'syn_count': 'sum', 'neuropil':'first', 
+        df = df.groupby(['pre_pt_root_id', 'post_pt_root_id']).agg({'syn_count': 'sum', 'neuropil':'first', 
                'nt_type':'first'}).reset_index()#sum synapses across all unique pre and post pairs
 
         # Set up indicies
-        pre = df['pre_root_id']
+        pre = df['pre_pt_root_id']
         
         dx1 = np.isin(pre,n_number)
         
-        post = df['post_root_id']
+        post = df['post_pt_root_id']
         dx2 = np.in1d(post,n_number)
         
         dx = np.logical_or(dx1,dx2)
@@ -200,16 +201,20 @@ class fw_corrections:
         df_small = df.iloc[dx_i]
 
 
-        vals, inds, inv = np.unique(list(df_small['pre_root_id'].values) + list(df_small['post_root_id'].values), return_index=True, return_inverse=True)
+        vals, inds, inv = np.unique(list(df_small['pre_pt_root_id'].values) + list(df_small['post_pt_root_id'].values), return_index=True, return_inverse=True)
         conv_dict = {val:i for i, val in enumerate(vals)}
-        df_small['pre_root_id_unique'] = [conv_dict[val] for val in df_small['pre_root_id']]
-        df_small['post_root_id_unique'] = [conv_dict[val] for val in df_small['post_root_id']]
+        df_small['pre_root_id_unique'] = [conv_dict[val] for val in df_small['pre_pt_root_id']]
+        df_small['post_root_id_unique'] = [conv_dict[val] for val in df_small['post_pt_root_id']]
         n = len(vals)#total rows of full dynamics matrix
         syn_count = df_small['syn_count'].values
         pre_root_id_unique = df_small['pre_root_id_unique'].values
         post_root_id_unique = df_small['post_root_id_unique'].values
         metdx = np.empty(np.shape(vals),dtype=int)
+        #print(np.shape(vals))
+        #vals_u = np.unique(np.append(df_small['pre_pt_root_id'].values,df_small['post_pt_root_id'].values))
         for i,v in enumerate(vals):
+            #print('vee',v)
+            #print(np.sum(df_meta['root_id']==v))
             metdx[i] = np.where(df_meta['root_id']==v)[0]
         #metdx = np.isin(df_meta['root_id'],vals)
         df_meta = df_meta.iloc[metdx]

@@ -201,7 +201,8 @@ def save_top_in_out(neuron,savedir,threshold=10):
 #%%
 plt.close('all')
 savedir = r"Y:\Data\Connectome\Connectome Mining\TopInOut"
-neurons =['FB7B','FC2B','FC2A','FC2C','FB4R','PFGs','PFR_a','FB4X','FB4P_b','FB5I','FB4M','FB5A','FB6H','hDeltaC','hDeltaF']
+neurons =['FB7B','FC2B','FC2A','FC2C','FB4R','PFGs','PFR_a','FB4X','FB4P_b',
+          'FB5I','FB4M','FB5A','FB6H','hDeltaC','hDeltaF','hDeltaB','hDeltaJ','hDeltaK']
 for n in neurons:
     save_top_in_out(n,savedir)
     

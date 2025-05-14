@@ -27,9 +27,10 @@ import matplotlib.pyplot as plt
 #%% Example %%%%%%%%
 
 # %% Initialise and get predictions
-NP_neuron = 'FB4E'
-fw = fw_corrections(classtype='Charlie')
-predictions = fw.allocate_by_connections(NP_neuron)   
+NP_neuron = 'FB4P_b'
+FW_neuron = 'FB4P'
+fw = fw_corrections(classtype='original')
+predictions = fw.allocate_by_connections(NP_neuron,FW_neuron)   
 
 # plot predictions
 pcorr = predictions['Corr_pearson']
