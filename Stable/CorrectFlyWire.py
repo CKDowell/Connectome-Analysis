@@ -56,14 +56,15 @@ class fw_corrections:
         elif classtype=='Charlie':
             dpath = os.path.join(self.datapath ,'classification_Charlie.csv')
         self.classes = pd.read_csv(dpath)
-        
+        dpath = os.path.join(self.datapath,'consolidated_cell_types.csv')
+        self.flywire_types = pd.read_csv(dpath)
         # Neuron summaries
         dpath = os.path.join(self.datapath,'neurons.csv')
         self.neurons = pd.read_csv(dpath)
         print('Flywire data loaded')    
         # Loaded flywire data
         
-    def allocate_by_connections(self,NP_neuron,FW_neuron):
+    def allocate_by_connections(self,NP_neuron,FW_neuron,namingconvention='hemibrain_type'):
         # Standard variables
         
         # Neuprint connections
@@ -71,7 +72,7 @@ class fw_corrections:
         
         # Query neuprint for
         c = self.classes.copy() 
-        o_pred = pd.Series.to_numpy(c['hemibrain_type'])
+        o_pred = pd.Series.to_numpy(c[namingconvention])
         
         # Check if already allocated
         check = np.sum(o_pred==FW_neuron)
@@ -117,6 +118,8 @@ class fw_corrections:
             np_invec = in_array[:,dx_in_np]
             np_outvec = out_array[:,dx_out_np]
             
+            #
+            
            
             # Our neurons of interest in flywire        
             nids = pd.Series.to_numpy(self.classes['root_id'].copy())
@@ -143,8 +146,7 @@ class fw_corrections:
             corr_spearman = np.zeros([len(our_ndx),2])
             
             # Calculate correlations to input and output vectors
-            for i in range(len(our_ndx)):
-                
+            for i in range(len(our_ndx)):   
                 # output
                 sp = stats.spearmanr(np_outvec[0,:],out_mat[i,:])
                 pr = stats.pearsonr(np_outvec[0,:],out_mat[i,:])
@@ -157,11 +159,112 @@ class fw_corrections:
                 corr_pearson[i,1] = pr.statistic
                 o_nids = pd.Series.to_numpy(df_meta['root_id'])
                 our_ids = o_nids[our_ndx]
-
         else:
             print('No multi-type prediction...')
+            print('Searching full connectome')
+            df_meta = self.get_conmat(nids,return_meta=True)
+            
+            ht = pd.Series.to_numpy(df_meta['hemibrain_type'])
+            dxkeep = np.array([],dtype=int)
+            for i,t in enumerate(ht):     
+                if pd.isnull(t):
+                    continue
+                elif not (',' in t):
+                    dxkeep = np.append(dxkeep,i)
+                    #print(t)
+            
+            ht_small = ht[dxkeep]
+            nidsmall = nids[dxkeep]
+            # Overlap in pre and post populations with flywire
+            in_out_types  = np.unique(ht[dxkeep])
+            in_overlap = in_types[np.in1d(in_types,in_out_types) ]
+            out_overlap = out_types[np.in1d(out_types,in_out_types)]
+            
+            dx_in_np  = np.in1d(in_types,in_overlap)
+            dx_out_np = np.in1d(out_types,out_overlap)
+            np_invec = in_array[:,dx_in_np]
+            np_outvec = out_array[:,dx_out_np]
+            
+            ht_overlap_dx = np.logical_or(np.in1d(ht_small, in_overlap),np.in1d(ht_small, out_overlap))
+            
+            tnids = nidsmall[ht_overlap_dx]
+            
+            nidx = np.logical_and(np.logical_or(np.in1d(self.connections['pre_pt_root_id'],tnids)
+                                 ,np.in1d(self.connections['post_pt_root_id'],tnids)),
+                                  self.connections['syn_count']>4)
+            
+            nidsall,counts = np.unique(np.append(self.connections['pre_pt_root_id'][nidx].to_numpy(),
+                                          self.connections['post_pt_root_id'][nidx].to_numpy()
+                                          ),return_counts=True)
+            print('Searching ',len(nidsall),' neurons')
+            #nidsmall =nidsp
+       
+            out_mat_full,df_meta = self.get_conmat(nidsall,exclusive=True)
+            #our_ndx = np.in1d(df_meta['root_id'],nids[dx_neuron])
+            
+            # Running this again since we are cutting down the types to those with >4 synapses
+            ht = pd.Series.to_numpy(df_meta['hemibrain_type'])
+            dxkeep = np.array([],dtype=int)
+            for i,t in enumerate(ht):     
+                if pd.isnull(t):
+                    continue
+                elif not (',' in t):
+                    dxkeep = np.append(dxkeep,i)
+            ht= ht[dxkeep]
+            
+            in_out_types  = np.unique(ht)
+            in_overlap = in_types[np.in1d(in_types,in_out_types) ]
+            out_overlap = out_types[np.in1d(out_types,in_out_types)]
+            
+            dx_in_np  = np.in1d(in_types,in_overlap)
+            dx_out_np = np.in1d(out_types,out_overlap)
+            np_invec = in_array[:,dx_in_np]
+            np_outvec = out_array[:,dx_out_np]
+            
+            
+            
+            our_ndx = np.arange(0,len(nidsall))
+            # output matrix flywire across types
+            #out_mat_full = c_mat[our_ndx,:]
+            out_mat = np.zeros([len(our_ndx),len(out_overlap)])
+            for i,o in enumerate(out_overlap):
+                odx = ht==o
+                out_mat[:,i] = np.sum(out_mat_full[:,odx],axis=1).flatten()
+
+            # input matrix flywire across types
+            in_mat_full = out_mat_full.copy()
+            in_mat = np.zeros([len(in_overlap),len(our_ndx)])
+            for i,o in enumerate(in_overlap):
+                odx = ht==o
+                in_mat[i,:] = np.sum(in_mat_full[odx,:],axis=0).flatten()
+            
+            
+            in_mat = np.transpose(in_mat)
+            # Sort outputs by Neuprint
+            corr_pearson = np.zeros([len(our_ndx),2])
+            corr_spearman = np.zeros([len(our_ndx),2])
+            
+            # Calculate correlations to input and output vectors
+            for i in range(len(our_ndx)):   
+                # output
+                sp = stats.spearmanr(np_outvec[0,:],out_mat[i,:])
+                pr = stats.pearsonr(np_outvec[0,:],out_mat[i,:])
+                corr_spearman[i,0] = sp.statistic
+                corr_pearson[i,0] = pr.statistic
+                # input
+                sp = stats.spearmanr(np_invec[0,:],np.transpose(in_mat[i,:]))
+                pr = stats.pearsonr(np_invec[0,:],np.transpose(in_mat[i,:]))
+                corr_spearman[i,1] = sp.statistic
+                corr_pearson[i,1] = pr.statistic
+                o_nids = pd.Series.to_numpy(df_meta['root_id'])
+                our_ids = o_nids[our_ndx]
+            
+            
+            
+            
+            
             print('Broader search under development... stay tuned...')
-            return
+            #return
         
         
         # Now rank by top inputs and outputs and choose number seen in Neuprint
@@ -179,7 +282,7 @@ class fw_corrections:
         return output
         
             
-    def get_conmat(self,n_number):
+    def get_conmat(self,n_number,return_meta=False,exclusive=False):
         df = self.connections.copy()
         df_meta = self.classes.copy() 
 
@@ -193,8 +296,10 @@ class fw_corrections:
         
         post = df['post_pt_root_id']
         dx2 = np.in1d(post,n_number)
-        
-        dx = np.logical_or(dx1,dx2)
+        if exclusive:
+            dx = np.logical_and(dx1,dx2)
+        else:
+            dx = np.logical_or(dx1,dx2)
     
         dx_i = np.where(dx)[0]    
         #dx_i = [i for i,r in enumerate(dx.astype(int)) if r>0.1]
@@ -218,7 +323,8 @@ class fw_corrections:
             metdx[i] = np.where(df_meta['root_id']==v)[0]
         #metdx = np.isin(df_meta['root_id'],vals)
         df_meta = df_meta.iloc[metdx]
-        
+        if return_meta:
+            return df_meta
         
         # form unscaled sparse matrix
         C_orig = csr_matrix((syn_count, (pre_root_id_unique,post_root_id_unique)),shape=(n,n), dtype='float64')

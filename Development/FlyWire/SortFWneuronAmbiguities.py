@@ -25,11 +25,12 @@ Created on Thu Jan 11 11:39:05 2024
 from Stable.CorrectFlyWire import fw_corrections
 import matplotlib.pyplot as plt
 #%% Example %%%%%%%%
-
-# %% Initialise and get predictions
-NP_neuron = 'FB4P_b'
-FW_neuron = 'FB4P'
+#%% Initialise
 fw = fw_corrections(classtype='original')
+# %% Initialise and get predictions
+NP_neuron = 'FB6A'
+FW_neuron = 'FB6A'
+
 predictions = fw.allocate_by_connections(NP_neuron,FW_neuron)   
 
 # plot predictions

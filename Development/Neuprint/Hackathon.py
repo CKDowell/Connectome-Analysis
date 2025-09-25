@@ -25,6 +25,8 @@ import os
 from neuprint import fetch_neurons, fetch_adjacencies, NeuronCriteria as NC
 
 plt.rcParams['pdf.fonttype'] = 42 
+plt.rcParams['font.family'] = 'sans-serif'
+plt.rcParams['font.sans-serif'] = ['Arial']
 #%% Tangential neuron analysis
 from neuprint import fetch_neurons, NeuronCriteria as NC
 from neuprint import queries 
@@ -58,7 +60,7 @@ plt.yticks(np.arange(0,len(columns)),labels=pfrinst[csort])
 plt.figure()
 plt.plot(plotmat)
 #%% Defined in out
-out_dict  = cf.defined_in_out(['FB.*','hDelta.*','FC.*','PF.*','vDelta.*'],['FB.*','hDelta.*','FC.*','PF.*','vDelta.*'])
+out_dict  = cf.defined_in_out(['FB.*','hDelta.*','FC.*','PF.*','vDelta.*','FS.*'],['FB.*','hDelta.*','FC.*','PF.*','vDelta.*','FS.*'])
 
 #%%
 # Find neurons whose top inputs = top outputs
@@ -76,9 +78,10 @@ for i,n in enumerate(Names):
     tins = Names[ins>0.2]
     shrd = [t for i,t in enumerate(tins) if t in touts]
     if np.shape(shrd)[0]>0:
-        print(n,' ',shrd)
         ndx = Names==shrd
-        print(outs[ndx]*100,ins[ndx]*100)
+        print(n,outs[ndx]*100,' ',shrd,ins[ndx]*100)
+        
+        #print(outs[ndx]*100,ins[ndx]*100)
     
 #%%
 plt.plot(outs)
@@ -201,8 +204,15 @@ def save_top_in_out(neuron,savedir,threshold=10):
 #%%
 plt.close('all')
 savedir = r"Y:\Data\Connectome\Connectome Mining\TopInOut"
-neurons =['FB7B','FC2B','FC2A','FC2C','FB4R','PFGs','PFR_a','FB4X','FB4P_b',
-          'FB5I','FB4M','FB5A','FB6H','hDeltaC','hDeltaF','hDeltaB','hDeltaJ','hDeltaK']
+neurons =[
+    'FB5Q'
+    #'PFL3','FB5A','FB5G'
+    #'FB6Q',#'FB6T','FB5B','FB5L','FB6N'
+    # 'hDeltaA','hDeltaB','hDeltaD','hDeltaE','hDeltaG','hDeltaI','hDeltaH','hDeltaL','hDeltaM',
+    # 'FB5AB','FB6E','FB6C_b','FB6D','FB6P'
+    # 'FB6A','FB7B','FC2B','FC2A','FC2C','FB4R','PFGs','PFR_a','FB4X','FB4P_b',
+    #       'FB5I','FB4M','FB5A','FB6H','hDeltaC','hDeltaF','hDeltaB','hDeltaJ','hDeltaK'
+    ]
 for n in neurons:
     save_top_in_out(n,savedir)
     
@@ -210,5 +220,114 @@ for n in neurons:
 
 
 #%%
+def save_top_in_out_sorted(neuron,savedir,threshold=10):
+    type_order = ['PFL','FS','hDelta','vDelta','FC','PFN','FB']
+    ndf,ndf2 = fetch_neurons(NC(type=neuron))
+    typelib_u, t_inputs, ncells = cf.top_inputs(neuron)
+    typelib_ou, t_outputs, ncells_o =cf.top_outputs(neuron)
+    
+    
+    plt.figure(figsize=(4,10))
+    ndx = typelib_ou!='None'
+    out_mean = t_outputs[ndx]/len(ndf)
+    pltdx = out_mean>threshold
+    ploty = np.zeros((2,sum(pltdx)))
+    py = out_mean[pltdx]
+    I = np.argsort(-py)
+    psort = py[I]
+    plotlabs = typelib_ou[ndx]
+    plotlabs = plotlabs[pltdx]
+    plotlabs = plotlabs[I]
+    ordered_index = np.array([],dtype='int')
+    idx_array = np.arange(0,len(plotlabs))
+    for t in type_order:
+        
+        match =np.where( np.char.startswith(plotlabs, t))[0]
+        ordered_index = np.append(ordered_index,match)
+        
+    ordered_index = np.append(ordered_index,idx_array[~np.in1d(idx_array,ordered_index)])
+    
+    ploty[0,:] = psort[ordered_index]
+    
+    x = np.zeros((2,sum(pltdx)))
+    x[0,:] = -np.arange(0,sum(pltdx))
+    x[1,:] = -np.arange(0,sum(pltdx))
+    
+    
+    
+    #plt.plot(ploty,x,linewidth=8,color=[0.8,0.8,0.8])
+    plt.barh(x[0,:],width=ploty[0,:],color=[0.8,0.8,0.8],height=0.5)
+    plt.yticks(x[0,:],labels=plotlabs[ordered_index])
+    plt.xlabel('Mean synapse count')
+    plt.subplots_adjust(left=0.3)
+    plt.ylim([np.min(x[:])-0.5,np.max(x[:])+0.5])
+    plt.title('Top ' + neuron + ' outputs')
+    savename = os.path.join(savedir,'Top' +neuron+'Outputs.pdf')
+    plt.savefig(savename)
+    savename = os.path.join(savedir,'Top' +neuron+'Outputs.png')
+    plt.savefig(savename)
+    
+    plt.figure(figsize=(4,10))
+    ndx = typelib_u!='None'
+    out_mean = t_inputs[ndx]/len(ndf)
+    pltdx = out_mean>threshold
+    ploty = np.zeros((2,sum(pltdx)))
+    py = out_mean[pltdx]
+    I = np.argsort(-py)
+    psort = py[I]
+    plotlabs = typelib_u[ndx]
+    plotlabs = plotlabs[pltdx]
+    plotlabs = plotlabs[I]
+    ordered_index = np.array([],dtype='int')
+    idx_array = np.arange(0,len(plotlabs))
+    for t in type_order:
+        
+        match =np.where( np.char.startswith(plotlabs, t))[0]
+        ordered_index = np.append(ordered_index,match)
+        
+    ordered_index = np.append(ordered_index,idx_array[~np.in1d(idx_array,ordered_index)])
+    
+    ploty[0,:] = psort[ordered_index]
+    
+    x = np.zeros((2,sum(pltdx)))
+    x[0,:] = -np.arange(0,sum(pltdx))
+    x[1,:] = -np.arange(0,sum(pltdx))
+    plt.barh(x[0,:],width=ploty[0,:],color=[0.8,0.8,0.8],height=0.5)
+    #plt.plot(ploty,x,linewidth=8,color=[0.8,0.8,0.8])
+    plt.yticks(x[0,:],labels=plotlabs[ordered_index])
+    plt.xlabel('Mean synapse count')
+    plt.subplots_adjust(left=0.3)
+    plt.ylim([np.min(x[:])-0.5,np.max(x[:])+0.5])
+    
+    # ploty[0,:] = py[I]
+    # plotlabs = typelib_u[ndx]
+    # plotlabs = plotlabs[pltdx]
+    # x = np.zeros((2,sum(pltdx)))
+    # x[0,:] = np.arange(0,sum(pltdx))
+    # x[1,:] = np.arange(0,sum(pltdx))
+    # plt.plot(ploty,x,linewidth=8,color=[0.8,0.8,0.8])
+    # plt.yticks(x[0,:],labels=plotlabs[I])
+    # plt.xlabel('Mean synapse count')
+    # plt.subplots_adjust(left=0.3)
+    # plt.ylim([np.min(x[:])-0.5,np.max(x[:])+0.5])
+    # plt.title('Top ' + neuron + ' inputs')
+    plt.xlim([0,250])
+    savename = os.path.join(savedir,'Top' +neuron+'Inputs.pdf')
+    plt.savefig(savename)
+    savename = os.path.join(savedir,'Top' +neuron+'Inputs.png')
+    #plt.savefig(savename)
 
-
+#%%
+plt.close('all')
+savedir = r"Y:\Papers, Review, Theses\RutaLabPapers\ET_2024\MyContribution\SupplementalPanels"
+neurons =[
+    'FC2A','FC2B','FC2C'
+    #'PFL3','FB5A','FB5G'
+    #'FB6Q',#'FB6T','FB5B','FB5L','FB6N'
+    # 'hDeltaA','hDeltaB','hDeltaD','hDeltaE','hDeltaG','hDeltaI','hDeltaH','hDeltaL','hDeltaM',
+    # 'FB5AB','FB6E','FB6C_b','FB6D','FB6P'
+    # 'FB6A','FB7B','FC2B','FC2A','FC2C','FB4R','PFGs','PFR_a','FB4X','FB4P_b',
+    #       'FB5I','FB4M','FB5A','FB6H','hDeltaC','hDeltaF','hDeltaB','hDeltaJ','hDeltaK'
+    ]
+for n in neurons:
+    save_top_in_out_sorted(n,savedir)

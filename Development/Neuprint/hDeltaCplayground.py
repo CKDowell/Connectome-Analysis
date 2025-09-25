@@ -306,6 +306,7 @@ for h in hdeltas:
     plt.figure(figsize=(5,20))
     ax = plt.subplot()
     plt.imshow(plt_mat[mndx,:],vmin=0,vmax=1,interpolation='None',aspect='auto')
+    plt.colorbar()
     plt.subplots_adjust(left=0.2)
     plt.yticks(np.linspace(0,len(ylab)-1,len(ylab)),labels=ylab)
     
