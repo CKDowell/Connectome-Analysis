@@ -205,7 +205,9 @@ def save_top_in_out(neuron,savedir,threshold=10):
 plt.close('all')
 savedir = r"Y:\Data\Connectome\Connectome Mining\TopInOut"
 neurons =[
-    'FB5Q'
+    'vDeltaA_a','vDeltaA_b','vDeltaB','vDeltaC','vDeltaD','vDeltaE','vDeltaF','vDeltaG',
+    'vDeltaH','vDeltaI','vDeltaJ','vDeltaK','vDeltaM'
+    #'FB5Q'
     #'PFL3','FB5A','FB5G'
     #'FB6Q',#'FB6T','FB5B','FB5L','FB6N'
     # 'hDeltaA','hDeltaB','hDeltaD','hDeltaE','hDeltaG','hDeltaI','hDeltaH','hDeltaL','hDeltaM',
@@ -220,11 +222,11 @@ for n in neurons:
 
 
 #%%
-def save_top_in_out_sorted(neuron,savedir,threshold=10):
+def save_top_in_out_sorted(neuron,savedir,threshold=10,rois=None):
     type_order = ['PFL','FS','hDelta','vDelta','FC','PFN','FB']
     ndf,ndf2 = fetch_neurons(NC(type=neuron))
-    typelib_u, t_inputs, ncells = cf.top_inputs(neuron)
-    typelib_ou, t_outputs, ncells_o =cf.top_outputs(neuron)
+    typelib_u, t_inputs, ncells = cf.top_inputs(neuron,rois=rois)
+    typelib_ou, t_outputs, ncells_o =cf.top_outputs(neuron,rois=rois)
     
     
     plt.figure(figsize=(4,10))
@@ -321,7 +323,8 @@ def save_top_in_out_sorted(neuron,savedir,threshold=10):
 plt.close('all')
 savedir = r"Y:\Papers, Review, Theses\RutaLabPapers\ET_2024\MyContribution\SupplementalPanels"
 neurons =[
-    'FC2A','FC2B','FC2C'
+    'OA-VPM3'
+    #'FC2A','FC2B','FC2C'
     #'PFL3','FB5A','FB5G'
     #'FB6Q',#'FB6T','FB5B','FB5L','FB6N'
     # 'hDeltaA','hDeltaB','hDeltaD','hDeltaE','hDeltaG','hDeltaI','hDeltaH','hDeltaL','hDeltaM',
@@ -330,4 +333,4 @@ neurons =[
     #       'FB5I','FB4M','FB5A','FB6H','hDeltaC','hDeltaF','hDeltaB','hDeltaJ','hDeltaK'
     ]
 for n in neurons:
-    save_top_in_out_sorted(n,savedir)
+    save_top_in_out_sorted(n,savedir,rois='FB')

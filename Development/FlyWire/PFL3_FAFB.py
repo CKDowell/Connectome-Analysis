@@ -269,7 +269,7 @@ for i,n in enumerate(EPG):
 
 
 from sklearn.cluster import KMeans
-km = KMeans(n_clusters=18).fit(mean_coords) # Does not always give appropriate coords
+km = KMeans(n_clusters=16).fit(mean_coords) # Does not always give appropriate coords
 cents = km.cluster_centers_
 cdx = np.argsort(cents[:,0])
 cents = cents[cdx,:]

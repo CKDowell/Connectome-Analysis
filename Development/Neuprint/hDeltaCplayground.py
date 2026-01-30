@@ -201,7 +201,7 @@ def get_syn_pair_loc(cell_pre,cell_post):
         ax_diff = np.sqrt(np.sum(np.square(syn_post-ax_term),axis=1))
         ax_den[:,0] = ax_diff
         for i in range(dshape[0]):
-            d_diff = np.sqrt(np.sum(np.square(syn_post-den_term[0,:]),axis=1)) 
+            d_diff = np.sqrt(np.sum(np.square(syn_post-den_term[i,:]),axis=1)) 
             ax_den[:,i+1] = d_diff
             
         d_code = np.argmin(ax_den,axis=1)
@@ -246,16 +246,17 @@ def ax_dendrite_hDelta(hdelta):
         dx = conn_df['bodyId_post']==n
         cell_pre = pd.Series.to_numpy(conn_df['bodyId_pre'][dx],dtype='int64')
         syn_loc,ax_term,den_term = get_syn_pair_loc(cell_pre,n)
-        v = np.argmin(den_term[:,2])
-        d = np.argmax(den_term[:,2])
+        v = np.argmin(den_term[:,2])+1
+        d = np.argmax(den_term[:,2])+1
         for i_s in range(len(cell_pre)):
             print(i_s)
             s = syn_loc[i_s]
             axnum = np.sum(s['d_code']==0)
             denum = np.sum(s['d_code']!=0)
             
-            de_d = np.sum(s['d_code']==d)
+            de_d = np.sum(s['d_code']==d)#dorsal or ventral dendrite
             de_v = np.sum(s['d_code']==v)
+            
             cdx = neuron_df['bodyId']==cell_pre[i_s]
             tp = pd.Series.to_numpy(neuron_df['type'][cdx])
             tdx = uni_type ==tp
@@ -264,6 +265,14 @@ def ax_dendrite_hDelta(hdelta):
             ax_den_mat_adv[tdx,0] = ax_den_mat_adv[tdx,0]+axnum 
             ax_den_mat_adv[tdx,1] = ax_den_mat_adv[tdx,1]+de_d 
             ax_den_mat_adv[tdx,2] = ax_den_mat_adv[tdx,2]+de_v 
+            #print(s['d_code'])
+            
+            # if (de_d+de_v)!=denum:
+            #     print('count off')
+            #     print('d',d)
+            #     print('v',v)
+                
+            #     return de_d
             
             ax_den_mat_all[tdx,0,i] = ax_den_mat_all[tdx,0,i]+axnum 
             ax_den_mat_all[tdx,1,i] = ax_den_mat_all[tdx,1,i]+de_d 
@@ -275,7 +284,7 @@ def ax_dendrite_hDelta(hdelta):
 
 
 
-#%% 
+#%% Plot ratios of inputs to dendrites vs axons
 plt.close('all')
 hdeltas = ['hDeltaA', 'hDeltaB', 'hDeltaC', 'hDeltaD', 'hDeltaE', 'hDeltaF', 
            'hDeltaG', 'hDeltaH', 'hDeltaI', 'hDeltaJ', 'hDeltaK', 'hDeltaL',
@@ -330,3 +339,47 @@ for h in hdeltas:
     savename = os.path.join(savedir,'DenAx_'+ h +'.pdf')
     plt.rcParams['pdf.fonttype'] = 42 
     plt.savefig(savename)
+    
+#%% Plot absolute values ranked
+
+h = 'hDeltaJ'
+tmin = 10
+h_s = np.shape(h_all)
+
+hdeltas = ['hDeltaA', 'hDeltaB', 'hDeltaC', 'hDeltaD', 'hDeltaE', 'hDeltaF', 
+           'hDeltaG', 'hDeltaH', 'hDeltaI', 'hDeltaJ', 'hDeltaK', 'hDeltaL',
+           'hDeltaM']
+plt.close('all')
+for h in hdeltas:
+    plt.figure()
+    h_delta_ax_den = ax_dendrite_hDelta(h)
+    
+    
+    types = h_delta_ax_den['Post_types']
+    tot_counts = np.sum(h_delta_ax_den['AxonDendrite'],axis=1)
+    I = np.argsort(-tot_counts)
+    tot_counts = tot_counts[I]/h_s[2]
+    types = types[I]
+    AD = h_delta_ax_den['AxonDendrite'][I]/h_s[2]
+    types = types[tot_counts>=tmin]
+    AD = AD[tot_counts>=tmin]
+    for i,n in enumerate(types):
+        plt.fill_between([0,AD[i,1]],[-i-0.4,-i-0.4],[-i+0.4,-i+0.4],color='k')
+        plt.fill_between([0,-AD[i,0]],[-i-0.4,-i-0.4],[-i+0.4,-i+0.4],color=[0.5,0.5,0.5])
+        # plt.plot([0,AD[i,1]],[-i,-i],color='k')
+        # plt.plot([0,-AD[i,0]],[-i,-i],color=[0.5,0.5,0.5])
+        
+    
+    plt.xlim([-np.max(AD[:])-5,np.max(AD[:])+5])
+    plt.yticks(np.arange(-i,1),labels=np.flipud(types))
+    plt.xlabel('Mean syn count (-ax,+den)')
+
+    savename = os.path.join(savedir,'DenAx_Count_'+ h +'.png')
+    plt.savefig(savename)
+    savename = os.path.join(savedir,'DenAx__Count'+ h +'.pdf')
+    plt.rcParams['pdf.fonttype'] = 42 
+    plt.savefig(savename)
+
+
+
+

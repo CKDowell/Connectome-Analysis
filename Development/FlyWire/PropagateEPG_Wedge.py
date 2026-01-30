@@ -19,7 +19,7 @@ import caveclient
 import pandas as pd
 from matplotlib import pyplot as plt
 import numpy as np
-from Utils.utils_general import utils_general as ug
+from Utilities.utils_general import utils_general as ug
 import os
 client = caveclient.CAVEclient()
 #client.auth.setup_token(make_new=False)
@@ -219,6 +219,7 @@ pbdx = presyn_d7['neuropil']=='PB'
 pids = presyn_d7['pre_pt_root_id'][pbdx]
 d7_pbcoords = np.array(presyn_d7['pre_pt_position'][pbdx].tolist())
 
+
 d7_pb_out = np.zeros((len(delta7),3,3))
 
 for i,c in enumerate(delta7):
@@ -288,6 +289,293 @@ savedict = {'root_ids':delta7,'PB_theta':input_thetas,'PB_theta_by_glom':input_t
 savedir = 'D:\\ConnectomeData\\FlywireWholeBrain'
 ug.save_pick(savedict,os.path.join(savedir,'Delta7_GlomAdv.pkl'))
 
+#%% PFL3 neurons
+dx = df_meta['hemibrain_type']=='PFL3'
+print(np.sum(dx))
+PFL3 = df_meta['root_id'][dx].to_numpy()
+presyn_PFL3 = client.materialize.query_view("valid_synapses_nt_np_v6", filter_in_dict={"pre_pt_root_id": PFL3})
+postsyn_PFL3 = client.materialize.query_view("valid_synapses_nt_np_v6", filter_in_dict={"post_pt_root_id": PFL3})
+
+#%% Get PFL FSB columnar arrangement
+from scipy import stats
+fsbdx = postsyn_PFL3['neuropil']=='FB'
+pfl3coords = np.zeros((len(PFL3),3))
+pfl3_projmean = np.zeros((len(PFL3),3))
+pfl3_coords_all = postsyn_PFL3['post_pt_position'].to_numpy()
+pfl3_coords_all = np.array(pfl3_coords_all.tolist())
+
+
+
+pca = PCA(n_components=3)
+pfl3fit = (pfl3_coords_all-np.mean(pfl3_coords_all,axis=0))/np.std(pfl3_coords_all,axis=0)
+pca.fit(pfl3fit)
+b = pca.components_
+proj = np.matmul(pfl3fit,pca.components_.T)
+    
+for i,p in enumerate(PFL3):
+    pdx = postsyn_PFL3['post_pt_root_id']==p
+    dx = np.logical_and(pdx,fsbdx)
+    tcoords = postsyn_PFL3['post_pt_position'][dx]
+    pfl3coords[i,:] = np.mean(tcoords,axis=0)
+    pfl3_projmean[i,:] = np.mean(proj[dx,:],axis=0)
+    
+km = KMeans(n_clusters=12,n_init=50).fit(pfl3coords) # Does not always give appropriate coords
+cents = km.cluster_centers_
+cr = np.argsort(cents[:,0])
+cents_ranked = cents[cr,:]
+col_array= np.arange(0,12)
+col_array2 = col_array.copy()
+col_array2[cr] = col_array.copy()
+pfl3_col_id = col_array2[km.labels_] 
+
+# Re rank PB gloms 
+pb_rank_cond = np.append(np.arange(0,8),np.arange(0,8))
+col8_theta = np.zeros(8)
+for i in range(8):
+    col8_theta[i] = stats.circmean(glom_theta[pb_rank_cond==i],low=-np.pi,high=np.pi)
+    
+# This shift if zeroed produces a perfect PFL3 output... needto check...
+col8_theta_shift = np.roll(col8_theta,0) # shift by one column since middle glom innervates right FSB
+
+
+col12_theta = ug.circ_interp(np.linspace(0,7,12),np.arange(0,8),col8_theta_shift)
+
+pfl3_thetas = col12_theta[pfl3_col_id]
+    
+    
+    
+    
+fig = plt.figure()
+ax = fig.add_subplot(projection='3d')
+ax.scatter(pfl3coords[:,0],pfl3coords[:,1],pfl3coords[:,2])
+
+ax.scatter(cents[:,0],cents[:,1],cents[:,2],color='r')
+
+for ir,r in enumerate(pfl3_col_id):
+    theta = np.round((180/np.pi)*pfl3_thetas[ir])
+    ax.text(pfl3coords[ir,0],pfl3coords[ir,1],pfl3coords[ir,2],str(theta))
+
+ax.scatter(ranked_pbcoords_final[:,0],ranked_pbcoords_final[:,1],ranked_pbcoords_final[:,2],color='k')
+for ir,r in enumerate(ranked_pbcoords_final):
+    theta =np.round((180/np.pi)*ranked_theta_final[ir])
+    ax.text(r[0],r[1],r[2],theta)
+    #%%
+# fig = plt.figure()
+# ax = fig.add_subplot(projection='3d')
+# #%%
+# tcoords = pfl3_coords_all[np.in1d(postsyn_PFL3['post_pt_root_id'],PFL3[PFL3_LAL==-1]),:]
+    
+# ax.scatter(tcoords[:,0],tcoords[:,1],tcoords[:,2])
+#%% Get PFL3 EPG, delta7 input matrix
+PFL3_inputmat = np.zeros((len(ranked_EPG_final)+len(delta7),len(PFL3)))
+PFL3_LAL = np.zeros(len(PFL3))
+PFL3_input_angles = np.append(ranked_theta_final,input_thetas)
+activation_sign = np.append(np.ones(len(ranked_theta_final)),-np.ones(len(input_thetas)))
+for i,p in enumerate(PFL3):
+    pdx = postsyn_PFL3['post_pt_root_id']==p
+    ROIs = np.unique(postsyn_PFL3['neuropil'][pdx])
+    if sum(ROIs=='LAL_L')==1:
+        PFL3_LAL[i] = -1 
+    elif sum(ROIs=='LAL_R')==1:
+        PFL3_LAL[i] = 1
+    for ie,e in enumerate(ranked_EPG_final):
+        edx = postsyn_PFL3['pre_pt_root_id']==e
+        dx = np.logical_and(pdx,edx)
+        PFL3_inputmat[ie,i] = np.sum(dx)
+        
+    for ie,e in enumerate(delta7):
+        edx = postsyn_PFL3['pre_pt_root_id']==e
+        dx = np.logical_and(pdx,edx)
+        PFL3_inputmat[ie+len(ranked_EPG_final),i] = np.sum(dx)
+
+#%% Model output for different EB offsets without FSB input
+#plt.close('all')
+offsets = np.linspace(-np.pi,np.pi,100)
+diff = np.zeros(len(offsets))
+PFL3_inputmatN = PFL3_inputmat/np.sum(PFL3_inputmat,axis=0)
+for io,o in enumerate(offsets):
+    act_vector = (np.cos(PFL3_input_angles+o)+1)*activation_sign
+    pact = np.matmul(act_vector,PFL3_inputmat)
+    L = np.sum(pact[PFL3_LAL==-1])
+    R = np.sum(pact[PFL3_LAL==1])
+    plt.figure(101)
+    plt.scatter(o,L,color='b')
+    plt.scatter(o,R,color='r')
+    diff[io] = R-L
+    
+    
+plt.figure(101)
+plt.xlabel('Bump position (rads)')
+plt.ylabel('Left/Right PFL activation (AU)')
+#plt.ylim([-1200,-500])
+plt.figure(102)
+plt.scatter(offsets,diff,c=offsets,cmap='coolwarm')    
+#plt.ylim([-600,600])
+plt.ylabel('Right - Left PFL activation (AU)')
+plt.xlabel('Bump position (rads)')
+
+#%% Model output for different EB offsets without FSB input
+#plt.close('all')
+offsets = np.linspace(-np.pi,np.pi,100)
+diff = np.zeros(len(offsets))
+PFL3_inputmatN = PFL3_inputmat.copy()
+d7_epg_rat =np.sum(PFL3_inputmat[:len(ranked_EPG_final),:]) /np.sum(PFL3_inputmat[:])
+PFL3_inputmatN[:len(ranked_EPG_final),:] = d7_epg_rat*PFL3_inputmatN[:len(ranked_EPG_final),:]/np.sum(PFL3_inputmatN[:len(ranked_EPG_final),:],axis=0) 
+PFL3_inputmatN[len(ranked_EPG_final):,:] = (1-d7_epg_rat)*PFL3_inputmatN[len(ranked_EPG_final):,:]/np.sum(PFL3_inputmatN[len(ranked_EPG_final):,:],axis=0) 
+
+for io,o in enumerate(offsets):
+    act_vector = (np.cos(PFL3_input_angles+o)+1)*activation_sign
+    pact = np.matmul(act_vector,PFL3_inputmatN)
+    L = np.sum(pact[PFL3_LAL==-1])
+    R = np.sum(pact[PFL3_LAL==1])
+    plt.figure(201)
+    plt.scatter(o,L,color='b')
+    plt.scatter(o,R,color='r')
+    diff[io] = (R-L)
+    
+    
+plt.figure(201)
+plt.xlabel('Bump position (rads)')
+plt.ylabel('Left/Right PFL activation (AU)')
+#plt.ylim([-1200,-500])
+plt.figure(202)
+plt.scatter(offsets,diff,c=offsets,cmap='coolwarm')    
+#plt.ylim([-600,600])
+plt.ylabel('Right - Left PFL activation (AU)')
+plt.xlabel('Bump position (rads)')
+#%% Model output with FSB inputs as cosine with differing activities
+plt.close('all')
+offsetsH = np.linspace(-np.pi,np.pi,101)
+offsetsG = np.linspace(-np.pi,np.pi,101)
+diff = np.zeros((len(offsetsH),len(offsetsG)))
+PFL3_inputmatN = PFL3_inputmat/np.sum(PFL3_inputmat,axis=0)
+gstrengths = [0,.01,0.02,0.05,.1,1,2,4,8]
+for ig,gstrength in enumerate(gstrengths):
+    for io,o in enumerate(offsetsH):
+        act_vector = (np.cos(PFL3_input_angles+o)+1)*activation_sign
+        pact = np.matmul(act_vector,PFL3_inputmatN)
+        
+        for i2,o2 in enumerate(offsetsG):
+            gact =gstrength*(np.cos(pfl3_thetas+o2)+1)
+            tact = np.exp(pact+gact)
+            L = np.sum(tact[PFL3_LAL==-1])
+            R = np.sum(tact[PFL3_LAL==1])
+            diff[io,i2] = (R-L)/np.sum(R+L)
+            #print(L,R)
+    
+    plt.subplot(3,3,ig+1)
+    plt.imshow(np.flipud(diff),aspect='auto',cmap='coolwarm')#,vmin=-.5,vmax=.5)
+    plt.xlabel('FSB bump')
+    plt.ylabel('PB bump')
+    labs = np.round((180/np.pi)*offsetsG[np.linspace(0,100,5,dtype='int')])
+    plt.xticks(np.linspace(0,100,5),labels = labs)
+    plt.yticks(np.linspace(0,100,5),labels = np.flipud(labs))
+    plt.plot([0,100],[100,0],color='k')
+#%% Model output with FSB inputs as bump that gets broader
+plt.close('all')
+offsetsH = np.linspace(-np.pi,np.pi,101)
+offsetsG = np.linspace(-np.pi,np.pi,101)
+diff = np.zeros((len(offsetsH),len(offsetsG)))
+PFL3_inputmatN = PFL3_inputmat/np.sum(PFL3_inputmat,axis=0)
+gstrengths = [0,0.02,0.05,.1,.2,.5,1,2,4]
+for ig,gstrength in enumerate(gstrengths):
+    for io,o in enumerate(offsetsH):
+        act_vector = (np.cos(PFL3_input_angles-o)+1)*activation_sign
+        pact = np.matmul(act_vector,PFL3_inputmatN)
+        
+        for i2,o2 in enumerate(offsetsG):
+            gact =gstrength*(np.exp(np.cos(pfl3_thetas-o2))+1)+5
+            tact = np.exp(pact+gact)
+            L = np.sum(tact[PFL3_LAL==-1])
+            R = np.sum(tact[PFL3_LAL==1])
+            diff[io,i2] = (R-L)/np.sum(R+L)
+            #print(L,R)
+    plt.figure(101)
+    plt.subplot(3,3,ig+1)
+    plt.imshow(np.flipud(diff),aspect='auto',cmap='coolwarm',vmin=-.1,vmax=.1)
+    plt.xlabel('FSB bump')
+    plt.ylabel('PB bump')
+    labs = np.round((180/np.pi)*offsetsG[np.linspace(0,100,5,dtype='int')])
+    plt.xticks(np.linspace(0,100,5),labels = labs)
+    plt.yticks(np.linspace(0,100,5),labels = np.flipud(labs))
+    plt.plot([0,100],[100,0],color='k')
+    # diffroll = np.zeros_like(diff)
+    # for i in range(101):
+    #     diffroll[:,i] = np.roll(diff[:,i],-i)
+        
+    # plt.subplot(1,2,2)
+    # plt.imshow(np.flipud(diffroll),aspect='auto',cmap='coolwarm')
+    # plt.xlabel('FSB bump')
+    # plt.ylabel('PB bump')
+    # labs = np.round((180/np.pi)*offsetsG[np.linspace(0,100,5,dtype='int')])
+    # plt.xticks(np.linspace(0,100,5),labels = labs)
+    # plt.yticks(np.linspace(0,100,5),labels = np.flipud(labs))
+    # #plt.plot([0,100],[100,0],color='k')
+    # plt.colorbar()
+plt.figure()
+for ig,gstrength in enumerate(gstrengths):
+    gact =gstrength*(np.cos(pfl3_thetas)+1)+5
+    plt.scatter(pfl3_thetas,gact,label=ig)
+plt.ylim([0,15])
+plt.legend()
+#%% Play in some activity to the network
+from analysis_funs.CX_analysis_col import CX_a
+from EdgeTrackingOriginal.ETpap_plots.ET_paper import ET_paper
+
+datadir = "Y:\Data\FCI\Hedwig\FC2_maimon2\\241106\\f1\\Trial2"
+etp = ET_paper(datadir)
 #%%
+plt.close('all')
+from scipy.interpolate import interpn
+poffset = ug.circ_subtract(col12_theta[0],-np.pi)
+eb = ug.circ_subtract(etp.cxa.pdat['phase_eb'],-poffset) # add phase offset to match anatomy
+phase = ug.circ_subtract(etp.cxa.pdat['phase_fsb_upper'],-poffset)
+fsb = etp.cxa.pdat['wedges_fsb_upper']
+x_old = np.linspace(0, 1, 16)
+x_new = np.linspace(0, 1, 12)
 
+fsb_interp = np.apply_along_axis(lambda row: np.interp(x_new, x_old, row), 1, fsb)
+turn = np.zeros(len(eb))
+turn_rough = np.zeros(len(eb))
+for ie,e in enumerate(eb):
+    act_vector = (np.cos(PFL3_input_angles-e)+1)*activation_sign
+    pact = np.matmul(act_vector,PFL3_inputmatN)
+    
+    gact = 2*(np.cos(-phase[ie]+pfl3_thetas)+1)
+    tact = np.exp(pact+gact)
+    
+    
+    R = np.sum(tact[PFL3_LAL==-1])
+    L = np.sum(tact[PFL3_LAL==1])
+    turn[ie]= (R-L)/np.sum(R+L)
+    
+    gact2 = fsb_interp[ie,pfl3_col_id]*5
+    tact = np.exp(pact+gact2)
+    
+    R = np.sum(tact[PFL3_LAL==-1])
+    L = np.sum(tact[PFL3_LAL==1])
+    turn_rough[ie]= (R-L)/np.sum(R+L)
+    if np.mod(ie,500)==0:
+        plt.figure()
+        plt.scatter(pfl3_thetas,gact,color='k')
+        plt.scatter(pfl3_thetas,gact2,color='r')
+        plt.title(phase[ie])
+        
+plt.figure()
+plt.scatter(phase,eb,c=turn)
 
+plt.figure()
+plt.scatter(phase,eb,c=turn_rough)
+plt.figure()
+plt.scatter(etp.cxa.pdat['offset_eb_phase'].to_numpy(),etp.cxa.pdat['offset_fsb_upper_phase'].to_numpy(),c=turn_rough)
+
+#%%
+etp.cxa.plot_traj_arrow_heat(['fsb_upper'],turn,cmin=-.5,cmax=.5,a_sep=5)
+
+# plt.scatter(phase,eb,c=turn_rough)
+# plt.scatter(phase[np.abs(turn)<.01],eb[np.abs(turn)<.01])
+plt.plot(turn,color='k')
+plt.plot(turn_rough,color='r')
+etp.cxa.plot_traj_arrow_heat(['fsb_upper'],turn,cmin=-.5,cmax=.5,a_sep=5)
+
+etp.cxa.plot_traj_arrow_heat(['fsb_upper'],turn_rough,cmin=-.5,cmax=.5,a_sep=5)

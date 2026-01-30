@@ -15,10 +15,10 @@ from sklearn.cluster import AgglomerativeClustering
 from scipy.cluster.hierarchy import leaves_list
 from Stable.SimulationFunctions import sim_functions as sf
 #%%
-def top_inputs(names):
+def top_inputs(names,rois=None):
     # Gets names of top input types
     criteria = NC(type=names)
-    neuron_df, conn_df = fetch_adjacencies(None, criteria)
+    neuron_df, conn_df = fetch_adjacencies(None, criteria,rois=rois)
     prenames = conn_df['bodyId_pre']
     weights = conn_df['weight']
     idlib = neuron_df['bodyId']
@@ -41,9 +41,9 @@ def top_inputs(names):
         ncells[i] = np.sum(ma_n)
     return typelib_u, t_inputs, ncells
 
-def top_outputs(names):
+def top_outputs(names,rois=None):
     criteria = NC(type=names)
-    neuron_df, conn_df = fetch_adjacencies(criteria,None)
+    neuron_df, conn_df = fetch_adjacencies(criteria,None,rois=rois)
     postnames = conn_df['bodyId_post']
     weights = conn_df['weight']
     idlib = neuron_df['bodyId']

@@ -82,7 +82,7 @@ plt.gcf().subplots_adjust(bottom=0.2)
 z_out = cf.linkage_order(cluster_out)
 
 #%% Defined in out
-out_dict  = cf.defined_in_out(['FB.*','hDelta.*','FC.*','PF.*','vDelta.*'],['FB.*','hDelta.*','FC.*','PF.*','vDelta.*'])
+out_dict  = cf.defined_in_out(['FB.*','hDelta.*','FC.*','PF.*','vDelta.*','FR.*','FS.*','OA-VPM3'],['FB.*','hDelta.*','FC.*','PF.*','vDelta.*','FR.*','FS.*','OA-VPM3'])
 #out_dict = cf.defined_in_out(['pC.*'],['pC.*'])
 #%%
 cm = out_dict['con_mat']
@@ -93,7 +93,8 @@ plt.xticks(np.arange(0,len(ty)),labels=ty,rotation=90,fontsize=8)
 
 plt.yticks(np.arange(0,len(ty)),labels=tyo,fontsize=8)
 #%%
-savedir= "Y:\\Data\\Connectome\\Connectome Mining\\TangentialClustering\\July24"
+plt.close('all')
+savedir= "Y:\\Data\\Connectome\\Connectome Mining\\TangentialClustering\\Oct25"
 cluster_cm,dm_cm = cf.hier_cosine(cm,0.7)
 z_cm = cf.linkage_order(cluster_cm)
 plot_cm = cm[z_cm,:]
@@ -107,7 +108,7 @@ plt.imshow(plot_cm,vmax=100,vmin=0,interpolation='none')
 plt.xticks(np.arange(0,len(ty)),labels=ty,rotation=90,fontsize=5)
 ax = plt.subplot()
 
-FBlist = ['FB6P','FB5J','FB6H','FB5H','FB4M','FB4L','FB4R','FB4X','FB4C','FB5I','FB5AB','FC2A','FC2C','FC2B','PFL3','hDeltaC','hDeltaB','hDeltaJ','FB4P_b']
+FBlist = ['FB6P','FB5J','FB6H','FB5H','FB4M','FB4L','FB4R','FB4X','FB4C','FB5I','FB5AB','FC2A','FC2C','FC2B','PFL3','hDeltaC','hDeltaB','hDeltaJ','FB4P_b','FS1A']
 L = ax.get_xticklabels()
 tdx = [i for i,it in enumerate(ty) if it in FBlist]
 for i,xtick in enumerate(L):
@@ -131,7 +132,7 @@ plt.plot([0,len(ty)],[0,len(ty)],color='w',linestyle='--')
 plt.xlim([-0.5,len(ty)-0.5])
 plt.ylim([-0.5,len(ty)])
 plt.colorbar()
-#plt.savefig(os.path.join(savedir,'FSB_HierOrder.pdf'))
+plt.savefig(os.path.join(savedir,'FSB_HierOrder.pdf'))
 #%% save data
 import pickle
 save_dict = {'con_matrix':cm,'order':z_cm,'data_all':out_dict}
