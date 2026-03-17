@@ -59,10 +59,13 @@ ax = fig.add_subplot(projection='3d')
 ebdx = presyn_df['neuropil']=='EB'
 nids1 = presyn_df['pre_pt_root_id'][ebdx]
 ebcoords1 = np.array(presyn_df['pre_pt_position'][ebdx].tolist())
+ebcoords1[:,0] = -ebcoords1[:,0] # flip x axis so left is lower than right
+
 #ax.scatter(ebcoords[:,0],ebcoords[:,1],ebcoords[:,2],s=1)
 ebdx = postsyn_df['neuropil']=='EB'
 nids = postsyn_df['post_pt_root_id'][ebdx]
 ebcoords = np.array(postsyn_df['post_pt_position'][ebdx].tolist())
+ebcoords[:,0] = -ebcoords[:,0]
 #ax.scatter(ebcoords[:,0],ebcoords[:,1],ebcoords[:,2],s=1)
 
 
@@ -94,13 +97,14 @@ proj = np.matmul(ebfit,pca.components_.T)
 pbdx = presyn_df['neuropil']=='PB'
 pids = presyn_df['pre_pt_root_id'][pbdx]
 pbcoords = np.array(presyn_df['pre_pt_position'][pbdx].tolist())
+pbcoords[:,0] = -pbcoords[:,0]
 
 mean_coords = np.zeros((len(EPG),3))
 mean_coords_pb = np.zeros((len(EPG),3))
 for i,n in enumerate(EPG):
-    cmean = np.median(proj[nids==n,:],axis=0)
+    cmean = np.mean(proj[nids==n,:],axis=0)
     mean_coords[i,:] = cmean
-    pmean = np.median(pbcoords[pids==n,:],axis=0)
+    pmean = np.mean(pbcoords[pids==n,:],axis=0)
     mean_coords_pb[i,:] = pmean
 anat_phase = np.arctan2(mean_coords[:,0],mean_coords[:,1])
 
@@ -152,10 +156,17 @@ cludata = np.append(ranked_pbcoords,np.cos(ranked_theta[:,np.newaxis]),axis=1)
 cludata = np.append(cludata,np.sin(ranked_theta[:,np.newaxis]),axis=1)
 
 cludata = (cludata-np.mean(cludata,axis=0))/np.std(cludata,axis=0)
-cludata[:,3:] = cludata[:,3:]*2 # Increase the weight of the EB phase to ensure reliable glomerular assignment
+cludata[:,3:] = cludata[:,3:]*3 # Increase the weight of the EB phase to ensure reliable glomerular assignment
 from sklearn.cluster import KMeans
 from scipy.stats import circmean
 km = KMeans(n_clusters=16,n_init=50).fit(cludata) # Does not always give appropriate coords
+# Need 17 to cluster data
+# Remove one glom
+lab_o = km.labels_
+counts = np.bincount(lab_o)
+single_cle = np.where(counts==0)[0]
+
+
 cents = km.cluster_centers_
 cdx = np.argsort(cents[:,0])
 cents = cents[cdx,:]
@@ -182,8 +193,9 @@ dx_PB_glom = np.array([],dtype='int')
 glom_id = np.array([],dtype='int')
 glom_theta = np.array([])
 glomorder = np.arange(0,16)
-glomorder[0] = 1 
-glomorder[1] = 0
+# Minor adjustment of array order
+glomorder[15] =14 
+glomorder[14] = 15
 for io,i in enumerate(glomorder):
     dx_PB_glom = np.append(dx_PB_glom,np.where(labs==i)[0])
     glom_id = np.append(glom_id,np.ones(np.sum(labs==i),dtype='int')*io)
@@ -218,7 +230,7 @@ EPG_dict = ug.load_pick(os.path.join(savedir,'EPG_GlomAdv.pkl'))
 pbdx = presyn_d7['neuropil']=='PB'
 pids = presyn_d7['pre_pt_root_id'][pbdx]
 d7_pbcoords = np.array(presyn_d7['pre_pt_position'][pbdx].tolist())
-
+d7_pbcoords[:,0] =-d7_pbcoords[:,0]
 
 d7_pb_out = np.zeros((len(delta7),3,3))
 
@@ -303,7 +315,7 @@ pfl3coords = np.zeros((len(PFL3),3))
 pfl3_projmean = np.zeros((len(PFL3),3))
 pfl3_coords_all = postsyn_PFL3['post_pt_position'].to_numpy()
 pfl3_coords_all = np.array(pfl3_coords_all.tolist())
-
+pfl3_coords_all[:,0] = -pfl3_coords_all[:,0]
 
 
 pca = PCA(n_components=3)
@@ -315,7 +327,9 @@ proj = np.matmul(pfl3fit,pca.components_.T)
 for i,p in enumerate(PFL3):
     pdx = postsyn_PFL3['post_pt_root_id']==p
     dx = np.logical_and(pdx,fsbdx)
-    tcoords = postsyn_PFL3['post_pt_position'][dx]
+    tcoords = postsyn_PFL3['post_pt_position'][dx].to_numpy()
+    tcoords = np.array(tcoords.tolist())
+    tcoords[:,0] = -tcoords[:,0]
     pfl3coords[i,:] = np.mean(tcoords,axis=0)
     pfl3_projmean[i,:] = np.mean(proj[dx,:],axis=0)
     
@@ -424,7 +438,7 @@ PFL3_inputmatN[:len(ranked_EPG_final),:] = d7_epg_rat*PFL3_inputmatN[:len(ranked
 PFL3_inputmatN[len(ranked_EPG_final):,:] = (1-d7_epg_rat)*PFL3_inputmatN[len(ranked_EPG_final):,:]/np.sum(PFL3_inputmatN[len(ranked_EPG_final):,:],axis=0) 
 
 for io,o in enumerate(offsets):
-    act_vector = (np.cos(PFL3_input_angles+o)+1)*activation_sign
+    act_vector = (np.cos(PFL3_input_angles-o)+1)*activation_sign
     pact = np.matmul(act_vector,PFL3_inputmatN)
     L = np.sum(pact[PFL3_LAL==-1])
     R = np.sum(pact[PFL3_LAL==1])
@@ -452,11 +466,11 @@ PFL3_inputmatN = PFL3_inputmat/np.sum(PFL3_inputmat,axis=0)
 gstrengths = [0,.01,0.02,0.05,.1,1,2,4,8]
 for ig,gstrength in enumerate(gstrengths):
     for io,o in enumerate(offsetsH):
-        act_vector = (np.cos(PFL3_input_angles+o)+1)*activation_sign
+        act_vector = (np.cos(PFL3_input_angles-o)+1)*activation_sign
         pact = np.matmul(act_vector,PFL3_inputmatN)
         
         for i2,o2 in enumerate(offsetsG):
-            gact =gstrength*(np.cos(pfl3_thetas+o2)+1)
+            gact =gstrength*(np.cos(pfl3_thetas-o2)+1)
             tact = np.exp(pact+gact)
             L = np.sum(tact[PFL3_LAL==-1])
             R = np.sum(tact[PFL3_LAL==1])
@@ -464,7 +478,7 @@ for ig,gstrength in enumerate(gstrengths):
             #print(L,R)
     
     plt.subplot(3,3,ig+1)
-    plt.imshow(np.flipud(diff),aspect='auto',cmap='coolwarm')#,vmin=-.5,vmax=.5)
+    plt.imshow(np.flipud(diff),aspect='auto',cmap='coolwarm',vmin=-.1,vmax=.1)
     plt.xlabel('FSB bump')
     plt.ylabel('PB bump')
     labs = np.round((180/np.pi)*offsetsG[np.linspace(0,100,5,dtype='int')])
@@ -484,7 +498,7 @@ for ig,gstrength in enumerate(gstrengths):
         pact = np.matmul(act_vector,PFL3_inputmatN)
         
         for i2,o2 in enumerate(offsetsG):
-            gact =gstrength*(np.exp(np.cos(pfl3_thetas-o2))+1)+5
+            gact =(np.cos(pfl3_thetas-o2)*gstrength+1)+5
             tact = np.exp(pact+gact)
             L = np.sum(tact[PFL3_LAL==-1])
             R = np.sum(tact[PFL3_LAL==1])
@@ -492,7 +506,7 @@ for ig,gstrength in enumerate(gstrengths):
             #print(L,R)
     plt.figure(101)
     plt.subplot(3,3,ig+1)
-    plt.imshow(np.flipud(diff),aspect='auto',cmap='coolwarm',vmin=-.1,vmax=.1)
+    plt.imshow(np.flipud(diff),aspect='auto',cmap='coolwarm',vmin=-.5,vmax=.5)
     plt.xlabel('FSB bump')
     plt.ylabel('PB bump')
     labs = np.round((180/np.pi)*offsetsG[np.linspace(0,100,5,dtype='int')])
@@ -513,8 +527,9 @@ for ig,gstrength in enumerate(gstrengths):
     # #plt.plot([0,100],[100,0],color='k')
     # plt.colorbar()
 plt.figure()
+o2=0
 for ig,gstrength in enumerate(gstrengths):
-    gact =gstrength*(np.cos(pfl3_thetas)+1)+5
+    gact =(np.cos(pfl3_thetas-o2)*gstrength+1)+5
     plt.scatter(pfl3_thetas,gact,label=ig)
 plt.ylim([0,15])
 plt.legend()
@@ -522,9 +537,9 @@ plt.legend()
 from analysis_funs.CX_analysis_col import CX_a
 from EdgeTrackingOriginal.ETpap_plots.ET_paper import ET_paper
 
-datadir = "Y:\Data\FCI\Hedwig\FC2_maimon2\\241106\\f1\\Trial2"
+datadir ="Y:\Data\FCI\Hedwig\FC2_maimon2\\240514\\f1\\Trial2"
 etp = ET_paper(datadir)
-#%%
+#%% Model with EB phase, fsb phase or wedges
 plt.close('all')
 from scipy.interpolate import interpn
 poffset = ug.circ_subtract(col12_theta[0],-np.pi)
@@ -545,37 +560,68 @@ for ie,e in enumerate(eb):
     tact = np.exp(pact+gact)
     
     
-    R = np.sum(tact[PFL3_LAL==-1])
-    L = np.sum(tact[PFL3_LAL==1])
+    L = np.sum(tact[PFL3_LAL==-1])
+    R = np.sum(tact[PFL3_LAL==1])
     turn[ie]= (R-L)/np.sum(R+L)
     
     gact2 = fsb_interp[ie,pfl3_col_id]*5
     tact = np.exp(pact+gact2)
     
-    R = np.sum(tact[PFL3_LAL==-1])
-    L = np.sum(tact[PFL3_LAL==1])
+    L = np.sum(tact[PFL3_LAL==-1])
+    R = np.sum(tact[PFL3_LAL==1])
     turn_rough[ie]= (R-L)/np.sum(R+L)
-    if np.mod(ie,500)==0:
-        plt.figure()
-        plt.scatter(pfl3_thetas,gact,color='k')
-        plt.scatter(pfl3_thetas,gact2,color='r')
-        plt.title(phase[ie])
-        
-plt.figure()
-plt.scatter(phase,eb,c=turn)
 
-plt.figure()
-plt.scatter(phase,eb,c=turn_rough)
-plt.figure()
-plt.scatter(etp.cxa.pdat['offset_eb_phase'].to_numpy(),etp.cxa.pdat['offset_fsb_upper_phase'].to_numpy(),c=turn_rough)
-
-#%%
-etp.cxa.plot_traj_arrow_heat(['fsb_upper'],turn,cmin=-.5,cmax=.5,a_sep=5)
-
-# plt.scatter(phase,eb,c=turn_rough)
-# plt.scatter(phase[np.abs(turn)<.01],eb[np.abs(turn)<.01])
 plt.plot(turn,color='k')
 plt.plot(turn_rough,color='r')
+da = ug.get_ang_velocity(etp.cxa.ft2['ft_heading'].to_numpy(),etp.cxa.pv2['relative_time'].to_numpy())
+plt.plot(.1*da/np.std(da),color='b')
+#%%
+plt.close('all')
+# plt.scatter(phase,eb,c=turn_rough)
+# plt.scatter(phase[np.abs(turn)<.01],eb[np.abs(turn)<.01])
+
 etp.cxa.plot_traj_arrow_heat(['fsb_upper'],turn,cmin=-.5,cmax=.5,a_sep=5)
 
 etp.cxa.plot_traj_arrow_heat(['fsb_upper'],turn_rough,cmin=-.5,cmax=.5,a_sep=5)
+etp.cxa.plot_traj_arrow_heat(['fsb_upper'],turn,cmin=-.5,cmax=.5,a_sep=5)
+#%% All wedge model
+plt.close('all')
+from scipy.interpolate import interpn
+poffset = ug.circ_subtract(col12_theta[0],-np.pi)
+eb = ug.circ_subtract(etp.cxa.pdat['phase_eb'],-poffset) # add phase offset to match anatomy
+phase = ug.circ_subtract(etp.cxa.pdat['phase_fsb_upper'],-poffset)
+
+ebw = etp.cxa.pdat['wedges_eb']
+
+
+
+fsb = etp.cxa.pdat['wedges_fsb_upper']
+x_old = np.linspace(0, 1, 16)
+x_new = np.linspace(0, 1, 12)
+
+fsb_interp = np.apply_along_axis(lambda row: np.interp(x_new, x_old, row), 1, fsb)
+turn = np.zeros(len(eb))
+turn_rough = np.zeros(len(eb))
+for ie,e in enumerate(eb):
+    act_vector = (np.cos(PFL3_input_angles-e)+1)*activation_sign
+    pact = np.matmul(act_vector,PFL3_inputmatN)
+    
+    gact = 2*(np.cos(-phase[ie]+pfl3_thetas)+1)
+    tact = np.exp(pact+gact)
+    
+    
+    L = np.sum(tact[PFL3_LAL==-1])
+    R = np.sum(tact[PFL3_LAL==1])
+    turn[ie]= (R-L)/np.sum(R+L)
+    
+    gact2 = fsb_interp[ie,pfl3_col_id]*5
+    tact = np.exp(pact+gact2)
+    
+    L = np.sum(tact[PFL3_LAL==-1])
+    R = np.sum(tact[PFL3_LAL==1])
+    turn_rough[ie]= (R-L)/np.sum(R+L)
+
+plt.plot(turn,color='k')
+plt.plot(turn_rough,color='r')
+da = ug.get_ang_velocity(etp.cxa.ft2['ft_heading'].to_numpy(),etp.cxa.pv2['relative_time'].to_numpy())
+plt.plot(.1*da/np.std(da),color='b')

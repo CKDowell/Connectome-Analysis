@@ -205,8 +205,10 @@ def save_top_in_out(neuron,savedir,threshold=10):
 plt.close('all')
 savedir = r"Y:\Data\Connectome\Connectome Mining\TopInOut"
 neurons =[
-    'vDeltaA_a','vDeltaA_b','vDeltaB','vDeltaC','vDeltaD','vDeltaE','vDeltaF','vDeltaG',
-    'vDeltaH','vDeltaI','vDeltaJ','vDeltaK','vDeltaM'
+    # 'FS1A','FS1B','FS2','FS3',
+    'FS4A','FS4B','FS4C'
+    # 'vDeltaA_a','vDeltaA_b','vDeltaB','vDeltaC','vDeltaD','vDeltaE','vDeltaF','vDeltaG',
+    # 'vDeltaH','vDeltaI','vDeltaJ','vDeltaK','vDeltaM'
     #'FB5Q'
     #'PFL3','FB5A','FB5G'
     #'FB6Q',#'FB6T','FB5B','FB5L','FB6N'
@@ -318,6 +320,123 @@ def save_top_in_out_sorted(neuron,savedir,threshold=10,rois=None):
     plt.savefig(savename)
     savename = os.path.join(savedir,'Top' +neuron+'Inputs.png')
     #plt.savefig(savename)
+#%% Plot top in  lines
+plt.close('all')
+columnars = ['hDelta','vDelta','PFN','FC3','FS','PFR']
+neurons = ['FC2A','FC2B','FC2C']
+cols = np.array([],dtype=str)
+scale=50
+for i,neuron in enumerate(neurons):
+    
+    rois = None
+    tmin = 10
+    ndf,ndf2 = fetch_neurons(NC(type=neuron))
+    typelib_u, t_inputs, ncells = cf.top_inputs(neuron,rois=rois)
+    t_inputs = t_inputs/len(ndf) # average syn count per cell
+    t_input_prop = t_inputs/np.sum(t_inputs)
+    tdx = t_inputs>=tmin
+    typelib_u=typelib_u[tdx]
+    t_inputs = t_inputs[tdx]
+    t_input_prop = t_input_prop[tdx]
+    ordered_index = np.array([],'int')
+    
+    for c in columnars:
+        match = np.where(np.char.startswith(typelib_u,c))[0]
+        ordered_index = np.append(ordered_index,match)
+
+    coltypes = typelib_u[ordered_index]
+    input_propplot = t_input_prop[ordered_index]
+    
+    if i==0:
+        cols = np.append(cols,coltypes)
+    else:
+        cdx = np.in1d(coltypes,cols)
+        cols = np.append(cols,coltypes[~cdx])
+    colnum = np.arange(0,len(cols))
+    
+oi2 = np.array([],'int')
+for c in columnars:
+    match = np.where(np.char.startswith(cols,c))[0]
+    oi2 = np.append(oi2,match)
+cols = cols[oi2]
+
+for i,neuron in enumerate(neurons):
+    rois = None
+    tmin = 10
+    ndf,ndf2 = fetch_neurons(NC(type=neuron))
+    typelib_u, t_inputs, ncells = cf.top_inputs(neuron,rois=rois)
+    t_inputs = t_inputs/len(ndf) # average syn count per cell
+    t_input_prop = t_inputs/np.sum(t_inputs)
+    tdx = t_inputs>=tmin
+    typelib_u=typelib_u[tdx]
+    t_inputs = t_inputs[tdx]
+    t_input_prop = t_input_prop[tdx]
+    ordered_index = np.array([],'int')
+    for c in columnars:
+        match = np.where(np.char.startswith(typelib_u,c))[0]
+        ordered_index = np.append(ordered_index,match)
+
+    coltypes = typelib_u[ordered_index]
+    input_propplot = t_input_prop[ordered_index]
+    
+    # if i==0:
+    #     cols = np.append(cols,coltypes)
+    # else:
+    #     cdx = np.in1d(coltypes,cols)
+    #     cols = np.append(cols,coltypes[~cdx])
+    # colnum = np.arange(0,len(cols))
+    # print(cols)
+    for ic,c in enumerate(coltypes):
+        x = [colnum[cols==c][0],i*2+6]
+        y = [10,0]
+        lw = input_propplot[ic]*scale
+        plt.plot(x,y,color='k',linewidth=lw)
+    plt.text(i*2+6,-2,neuron,horizontalalignment='center',fontsize=6)
+
+for ic,c in enumerate(cols):
+    plt.text(ic,11,c,horizontalalignment='center',fontsize=6)
+
+plt.ylim([-5,12])
+plt.savefig(os.path.join(r'Y:\Presentations\2026\03_CSHL\Panels','FC2_inputs.pdf'))
+#%%
+
+
+
+
+
+
+
+out_mean = t_inputs[ndx]/len(ndf)
+pltdx = out_mean>threshold
+ploty = np.zeros((2,sum(pltdx)))
+py = out_mean[pltdx]
+I = np.argsort(-py)
+psort = py[I]
+plotlabs = typelib_u[ndx]
+plotlabs = plotlabs[pltdx]
+plotlabs = plotlabs[I]
+ordered_index = np.array([],dtype='int')
+idx_array = np.arange(0,len(plotlabs))
+for t in type_order:
+    
+    match =np.where( np.char.startswith(plotlabs, t))[0]
+    ordered_index = np.append(ordered_index,match)
+    
+ordered_index = np.append(ordered_index,idx_array[~np.in1d(idx_array,ordered_index)])
+
+ploty[0,:] = psort[ordered_index]
+
+x = np.zeros((2,sum(pltdx)))
+x[0,:] = -np.arange(0,sum(pltdx))
+x[1,:] = -np.arange(0,sum(pltdx))
+plt.barh(x[0,:],width=ploty[0,:],color=[0.8,0.8,0.8],height=0.5)
+#plt.plot(ploty,x,linewidth=8,color=[0.8,0.8,0.8])
+plt.yticks(x[0,:],labels=plotlabs[ordered_index])
+plt.xlabel('Mean synapse count')
+plt.subplots_adjust(left=0.3)
+plt.ylim([np.min(x[:])-0.5,np.max(x[:])+0.5])
+
+
 
 #%%
 plt.close('all')

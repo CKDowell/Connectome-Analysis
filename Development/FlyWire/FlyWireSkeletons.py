@@ -100,7 +100,66 @@ for i in cell_IDs:
     neuron.plot2d(color='k',linewidth=0.5,view=view,ax=ax,soma=False,alpha=0.5)
 ax.set_aspect('equal', adjustable='box')
 plt.savefig(os.path.join(r'Y:\Presentations\2025\04_LabMeeting\hDeltaC','hDeltaC_Skeletons.pdf'))
+#%% hDeltaJ
+cell_IDs = [720575940602747360,720575940623310780,720575940622683491
+,720575940619293622,720575940612972693,720575940626429383
+,720575940630556743,720575940602920364,720575940622438634
+,720575940630892344,720575940621838826,720575940607309577
+,720575940616330267,720575940618744047,720575940639596507
+,720575940606683228,720575940624103399,720575940630020409
+,720575940617949861,720575940623590221,720575940623222542
+,720575940630692143,720575940639598963,720575940636702174
+,720575940624940336,720575940645448756,720575940615193138
+,720575940639468789,720575940650870774,720575940617073876
+]
+fi,ax =  plt.subplots()
+view = ('x','-y')
+for i in cell_IDs:
+    swc_dir = os.path.join(skeleton_dir,str(i)+'.swc')
+    neuron = navis.read_swc(swc_dir)
     
+    neuron.plot2d(color='k',linewidth=0.5,view=view,ax=ax,soma=False,alpha=0.5)
+ax.set_aspect('equal', adjustable='box')
+plt.savefig(os.path.join(r'Y:\Presentations\2025\04_LabMeeting\hDeltaC','hDeltaJ_Skeletons.pdf'))   
+#%% hdeltaC J
+cell_IDs = [720575940638250112,720575940629468739,720575940628907524,
+            720575940614966214,720575940624215245,720575940631366483,
+            720575940623781268,720575940631725011,720575940628219479,
+            720575940617494232,720575940635678942,720575940614154786,
+            720575940643703588,720575940612851367,720575940620058537,
+            720575940632052010,720575940628211244,720575940631983277,
+            720575940622811116,720575940618694638,720575940621347583]
+fi,ax =  plt.subplots()
+view = ('x','-y')
+for i in cell_IDs:
+    swc_dir = os.path.join(skeleton_dir,str(i)+'.swc')
+    neuron = navis.read_swc(swc_dir)
+    
+    neuron.plot2d(color='r',linewidth=0.5,view=view,ax=ax,soma=False,alpha=0.5)
+ax.set_aspect('equal', adjustable='box')
+#lt.savefig(os.path.join(r'Y:\Presentations\2025\04_LabMeeting\hDeltaC','hDeltaC_Skeletons.pdf'))
+# hDeltaJ
+cell_IDs = [720575940602747360,720575940623310780,720575940622683491
+,720575940619293622,720575940612972693,720575940626429383
+,720575940630556743,720575940602920364,720575940622438634
+,720575940630892344,720575940621838826,720575940607309577
+,720575940616330267,720575940618744047,720575940639596507
+,720575940606683228,720575940624103399,720575940630020409
+,720575940617949861,720575940623590221,720575940623222542
+,720575940630692143,720575940639598963,720575940636702174
+,720575940624940336,720575940645448756,720575940615193138
+,720575940639468789,720575940650870774,720575940617073876
+]
+#fi,ax =  plt.subplots()
+view = ('x','-y')
+for i in cell_IDs:
+    swc_dir = os.path.join(skeleton_dir,str(i)+'.swc')
+    neuron = navis.read_swc(swc_dir)
+    
+    neuron.plot2d(color='k',linewidth=0.5,view=view,ax=ax,soma=False,alpha=0.5)
+ax.set_aspect('equal', adjustable='box')
+plt.savefig(os.path.join(r'Y:\Presentations\2025\04_LabMeeting\hDeltaC','hDeltaCJ_Skeletons.pdf'))  
+
 #%% FB5I
 
 cell_IDs = [720575940623649097,
@@ -146,6 +205,22 @@ ax.set_aspect('equal', adjustable='box')
 plt.savefig(os.path.join(r'Y:\Presentations\2025\05_GRC\skeletons','fb4p_b.pdf'))
 
 #%% FC2B
+colours = np.array([[81,61,204],[49,99,125],[81,156,205]])/255
+cell_IDs = [720575940638250112,720575940629468739,720575940628907524,
+            720575940614966214,720575940624215245,720575940631366483,
+            720575940623781268,720575940631725011,720575940628219479,
+            720575940617494232,720575940635678942,720575940614154786,
+            720575940643703588,720575940612851367,720575940620058537,
+            720575940632052010,720575940628211244,720575940631983277,
+            720575940622811116,720575940618694638,720575940621347583]
+fi,ax =  plt.subplots()
+view = ('x','-y')
+for i in cell_IDs:
+    swc_dir = os.path.join(skeleton_dir,str(i)+'.swc')
+    neuron = navis.read_swc(swc_dir)
+    
+    neuron.plot2d(color=colours[1,:],linewidth=0.5,view=view,ax=ax,soma=False,alpha=0.5)
+
 cell_IDs = [720575940631004728,720575940624611018,720575940614738956,
             720575940623712656,720575940622942868,720575940618463960,
             720575940637558618,720575940616968733,720575940636735198,
@@ -155,13 +230,13 @@ cell_IDs = [720575940631004728,720575940624611018,720575940614738956,
             720575940619578608,720575940614530098,720575940622943731,
             720575940622406260,720575940635530359,720575940624295096,
             720575940625678650,720575940615326779,720575940628860476,720575940636229183]
-fi,ax =  plt.subplots()
+#fi,ax =  plt.subplots()
 view = ('x','-y')
 for i in cell_IDs:
     swc_dir = os.path.join(skeleton_dir,str(i)+'.swc')
     neuron = navis.read_swc(swc_dir)
     
-    neuron.plot2d(color='k',linewidth=0.5,view=view,ax=ax,soma=False,alpha=0.5)
+    neuron.plot2d(color=colours[2,:],linewidth=0.5,view=view,ax=ax,soma=False,alpha=0.5)
 
 ax.set_aspect('equal', adjustable='box')
-plt.savefig(os.path.join(r'Y:\Presentations\2025\05_GRC\skeletons','FC2B.pdf'))
+plt.savefig(os.path.join(r'Y:\Presentations\2025\05_GRC\skeletons','FC2B_hDeltaC.pdf'))
