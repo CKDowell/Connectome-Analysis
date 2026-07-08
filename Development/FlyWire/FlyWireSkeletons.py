@@ -188,6 +188,18 @@ for i in cell_IDs:
 
 ax.set_aspect('equal', adjustable='box')
 plt.savefig(os.path.join(r'Y:\Presentations\2025\05_GRC\skeletons','fb4r.pdf'))
+#%% OA_VPM3
+cell_IDs = [720575940644745120,720575940640356149]
+fi,ax =  plt.subplots()
+view = ('x','-y')
+for i in cell_IDs:
+    swc_dir = os.path.join(skeleton_dir,str(i)+'.swc')
+    neuron = navis.read_swc(swc_dir)
+    
+    neuron.plot2d(color='k',linewidth=0.5,view=view,ax=ax,soma=False,alpha=0.5)
+
+ax.set_aspect('equal', adjustable='box')
+plt.savefig(os.path.join(r'Y:\Presentations\2025\05_GRC\skeletons','OA_VPM3.pdf'))
 
 #%% Fb4P_b
 cell_IDs = [720575940625703824, 720575940618295376, 720575940627357969,

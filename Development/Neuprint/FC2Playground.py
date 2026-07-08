@@ -212,6 +212,19 @@ for i in hdx:
 plt.title('PFN')
 plt.xlabel('L-R axis')
 plt.ylabel('D-V axis')
+#%% Scatter output syns of all FC2
+neuron_types = ['FC2A','FC2B','FC2C']
+for n in neuron_types:
+    neuron_criteria = NC(status='Traced', type=n, cropped=False)
+
+    da_conns = fetch_synapse_connections(neuron_criteria,None, syn_criteria)
+    coords = da_conns[['x_pre','y_pre','z_pre']].to_numpy()
+    mn_coords = np.min(coords,axis=0)
+    coords = coords-mn_coords
+    coords[:,2] = -coords[:,2]
+    coords[:,2] =coords[:,2]-min(coords[:,2])
+    plt.scatter(coords[:,0],coords[:,2],alpha=0.05,s=1)
+
 #%%
 savedir = os.path.join("Y:\\Data\\Connectome\\Connectome Mining\\FC2\\Outputs",ttype)
 plt.close('all')

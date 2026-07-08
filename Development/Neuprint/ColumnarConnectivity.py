@@ -10,7 +10,7 @@ and see how ring attractor-like the connections are
 """
 
 
-
+token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImRvd2VsbC5ja0BnbWFpbC5jb20iLCJsZXZlbCI6Im5vYXV0aCIsImltYWdlLXVybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hL0FDZzhvY0tQR3JQak5vclh3WXM0WWZnNld2SkV3U0N5NlVmQlhnYXlaZm5hMlpZZj1zOTYtYz9zej01MD9zej01MCIsImV4cCI6MTg3NDgxNDMwNn0.aJVCj8lW1kvChpMy8zz2_LY1RgBjw1hmLL3vTHE4nys'
 import Stable.ConnectomeFunctions as cf
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,9 +31,9 @@ from neuprint import queries
 # To do: extend this to look at all columnar to columnar connections
 plt.close('all')
 neurons = [
-    'hDeltaC',
-    'hDeltaF',
-    'FC2B',
+    # 'hDeltaC',
+    # 'hDeltaF',
+    'hDeltaB',
     # 'hDeltaJ','FC1C','FC2A',
     
     # 'FS1A','FS1B','FS2','FS3','FS4A','FS4B','FS4C',
@@ -43,7 +43,8 @@ neurons = [
            # 'vDeltaA_a','vDeltaA_b','vDeltaB','vDeltaC','vDeltaD','vDeltaE','vDeltaF','vDeltaG','vDeltaH','vDeltaI',
                       #'vDeltaJ','vDeltaK','vDeltaL','vDeltaM'
                       ]
-columnar_query = ['PFN','PFR','FS','FC','FR','PFG','PFL','hDelta','vDelta']
+#columnar_query = ['PFN','PFR','FS','FC','FR','PFG','PFL','hDelta','vDelta']
+columnar_query = ['hDelta','vDelta']
 prepost_query =       ['pre','pre','post','pre','post','pre','post','pre','pre']
 for t_neuron in neurons:
     print(t_neuron)
@@ -199,4 +200,81 @@ for t_neuron in neurons:
     plt.yticks(colmax,labels=conames);
     plt.colorbar()
     plt.title(t_neuron)
+    break
+#%% See if PFNs output asymmetrically onto tangentials
+from neuprint import Client
+#c = Client('neuprint.janelia.org', dataset='hemibrain:v1.2.1',token=token)
+c = Client('neuprint.janelia.org', dataset='male-cns:v0.9',token=token)
+c.fetch_version()
+#c.set_default_client()
+minweight = 2
+t_neuron = 'P'
+df,cf = fetch_adjacencies(NC(type=t_neuron,client=c),client=c)
+nf1,nf2 = fetch_neurons(NC(type=t_neuron,client=c),client=c)
+
+
+# Clean up data frames and order types
+ucons1 = df['type'].value_counts().reset_index()
+ucons1.columns = ['type', 'count']
+
+ucons = ucons1['type'].to_numpy()
+ucounts = ucons1['count'].to_numpy()
+ucounts = ucounts[ucons!=None]
+ucons = ucons[ucons!=None].astype(str)
+
+con_cols = []
+columnar_query = ['FB']#,'PFN','PFR','FS','FC','FR','PFG','PFL','hDelta','vDelta']
+
+for prefix in columnar_query:
+    match =ucons[ np.char.startswith(ucons, prefix)]
     
+    con_cols.extend(match)
+
+# Order PFN types
+lorder = ['L','R']
+colorder = np.arange(1,10)
+instances = nf1['instance'].to_numpy().astype('str_')
+
+
+
+lr_index = np.array([],dtype='int')
+for lr in lorder:
+    for c in colorder:
+        tstring = t_neuron+'(PB03)'+'_'+lr+str(c)
+        print(tstring)
+        #np.isin(instances,tstring)
+        lr_index = np.append(lr_index,np.where(np.char.startswith(instances,tstring))[0])
+
+
+
+
+cfc = cf.groupby(['bodyId_pre', 'bodyId_post'], as_index=False)['weight'].sum()
+cfc = cfc[cfc['weight']>=minweight]
+
+t_ids = nf1['bodyId'][lr_index].to_numpy()
+t_names = nf1.instance[lr_index].to_numpy()
+
+uconids = np.array([],dtype='int')
+xtick = np.array([])
+xlabel = np.array([])
+for u in con_cols:
+    colids = df['bodyId'][df['type']==u]    
+    tadd = np.unique(cfc.bodyId_post[np.in1d(cfc.bodyId_post,colids)])
+    if len(tadd)>0:
+        xtick = np.append(xtick,len(uconids))
+        xlabel = np.append(xlabel,u)
+    uconids = np.append(uconids,tadd)
+
+cfc = cfc[cfc['bodyId_pre'].isin(t_ids)&cfc['bodyId_post'].isin(uconids)]
+simpleconmat = (   cfc
+.pivot(index='bodyId_pre', columns='bodyId_post', values='weight')
+.reindex(index=t_ids,columns=uconids, fill_value=0))
+
+
+simpleconmat = simpleconmat.to_numpy()
+simpleconmat[np.isnan(simpleconmat)] = 0
+plt.figure()
+plt.imshow(simpleconmat,aspect='auto',interpolation='None',vmin=0,vmax=30)
+plt.xticks(xtick,labels=xlabel,rotation=90)
+plt.subplots_adjust(bottom=.3)
+plt.yticks(np.arange(0,len(t_ids)),labels=t_names)

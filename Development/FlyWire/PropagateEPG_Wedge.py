@@ -45,27 +45,38 @@ df = pd.read_csv(fn)
 
 fn = top_dir + 'neuropil_synapse_table.csv'
 df_synreg = pd.read_csv(fn)
+
+fn = top_dir + 'fafb_v783_princeton_synapse_table.csv.gz'
+df_p = pd.read_csv(fn) 
+
+# Note on data. For the FAFB the anatomical labels are correctly left/right assigned. The coordinates in
+# 3D renders online are LR flipped. Higher x coordinates indicate the right hand side, lower left hand side
 #%% Get EPG information
 dx = df_meta['hemibrain_type']=='EPG'
 print(np.sum(dx))
 EPG = df_meta['root_id'][dx].to_numpy()
-
+EPG = np.mod(EPG,720575940000000000)
 all_coords = np.array([])
-presyn_df = client.materialize.query_view("valid_synapses_nt_np_v6", filter_in_dict={"pre_pt_root_id": EPG})
-postsyn_df = client.materialize.query_view("valid_synapses_nt_np_v6", filter_in_dict={"post_pt_root_id": EPG})
+# presyn_df = client.materialize.query_view("valid_synapses_nt_np_v6", filter_in_dict={"pre_pt_root_id": EPG})
+# postsyn_df = client.materialize.query_view("valid_synapses_nt_np_v6", filter_in_dict={"post_pt_root_id": EPG})
+presyn_df = df_p[np.in1d(df_p['pre_root_id_720575940'],EPG)]
+postsyn_df = df_p[np.in1d(df_p['post_root_id_720575940'],EPG)]
 #%%
+prelist = ['pre_x','pre_y','pre_z']
+postlist = ['post_x','post_y','post_z']
+
 fig = plt.figure()
 ax = fig.add_subplot(projection='3d')
 ebdx = presyn_df['neuropil']=='EB'
-nids1 = presyn_df['pre_pt_root_id'][ebdx]
-ebcoords1 = np.array(presyn_df['pre_pt_position'][ebdx].tolist())
-ebcoords1[:,0] = -ebcoords1[:,0] # flip x axis so left is lower than right
+nids1 = presyn_df['pre_root_id_720575940'][ebdx] # edit to bring CAVE back
+ebcoords1 = np.array(presyn_df[prelist][ebdx].to_numpy())
+ebcoords1[:,0] = ebcoords1[:,0] # flip x axis so left is lower than right
 
 #ax.scatter(ebcoords[:,0],ebcoords[:,1],ebcoords[:,2],s=1)
 ebdx = postsyn_df['neuropil']=='EB'
-nids = postsyn_df['post_pt_root_id'][ebdx]
-ebcoords = np.array(postsyn_df['post_pt_position'][ebdx].tolist())
-ebcoords[:,0] = -ebcoords[:,0]
+nids = postsyn_df['post_root_id_720575940'][ebdx]
+ebcoords = np.array(postsyn_df[postlist][ebdx].to_numpy())
+ebcoords[:,0] = ebcoords[:,0]
 #ax.scatter(ebcoords[:,0],ebcoords[:,1],ebcoords[:,2],s=1)
 
 
@@ -80,9 +91,9 @@ for i,n in enumerate(EPG):
     
     cmean = np.median(ebcoords1[nids1==n,:],axis=0)
     ax.scatter(cmean[0],cmean[1],cmean[2],color='r')
-#%% 
-PBL = presyn_df['pre_pt_root_id'][presyn_df['neuropil']=='GA_R'].unique()
-PBR = presyn_df['pre_pt_root_id'][presyn_df['neuropil']=='GA_L'].unique()
+#%% Get PB side from Gall projections
+PBL = presyn_df['pre_root_id_720575940'][presyn_df['neuropil']=='GA_R'].unique()
+PBR = presyn_df['pre_root_id_720575940'][presyn_df['neuropil']=='GA_L'].unique()
 #%%
 from sklearn.decomposition import PCA
 
@@ -95,23 +106,37 @@ proj = np.matmul(ebfit,pca.components_.T)
 
 
 pbdx = presyn_df['neuropil']=='PB'
-pids = presyn_df['pre_pt_root_id'][pbdx]
-pbcoords = np.array(presyn_df['pre_pt_position'][pbdx].tolist())
-pbcoords[:,0] = -pbcoords[:,0]
+pids = presyn_df['pre_root_id_720575940'][pbdx]
+#pbcoords = np.array(presyn_df['pre_pt_position'][pbdx].tolist())
+pbcoords = np.array(presyn_df[prelist][pbdx].to_numpy())
+pbcoords[:,0] = pbcoords[:,0]
 
 mean_coords = np.zeros((len(EPG),3))
 mean_coords_pb = np.zeros((len(EPG),3))
+mean_coords_raw = np.zeros((len(EPG),3))
+#Calculate mean EB and PB coordinates for EB phase and glomerulous determination
 for i,n in enumerate(EPG):
     cmean = np.mean(proj[nids==n,:],axis=0)
     mean_coords[i,:] = cmean
+    mean_coords_raw[i,:] = np.mean(ebcoords[nids==n,:],axis=0)
+    
     pmean = np.mean(pbcoords[pids==n,:],axis=0)
     mean_coords_pb[i,:] = pmean
-anat_phase = np.arctan2(mean_coords[:,0],mean_coords[:,1])
+    
 
-ap_deg = 180*(anat_phase+np.pi)/np.pi
+# EB phase determination from PCA projection.
+# 2 adjustments
+# 1. negative x values, so that right side has negative
+# 2. subtract pi/2 so that bottom of EB has +-180 degrees as per imaging convention
+anat_phase = ug.circ_subtract(np.arctan2(mean_coords[:,0],mean_coords[:,1]),np.pi/2) # have to add additional 90 degrees since PCA rotates the EB
+
+
+
+ap_deg = 180*(anat_phase)/np.pi
 ap_deg = np.round(ap_deg)
-
+plt.figure()
 plt.subplot(1,2,1)
+plt.title('PCA space')
 c = np.zeros(len(proj))
 cp = np.zeros(len(pbcoords))
 for i,n in enumerate(EPG):
@@ -119,7 +144,12 @@ for i,n in enumerate(EPG):
     cp[pids==n] = anat_phase[i]
 
 plt.scatter(proj[:,0],proj[:,1],s=1,c=c,alpha=0.1,cmap='coolwarm')
-plt.scatter(mean_coords[:,0],mean_coords[:,1],c=anat_phase,cmap='coolwarm')
+plt.subplot(1,2,2)
+plt.title('Anat space')
+plt.scatter(mean_coords_raw[:,0],mean_coords_raw[:,2],c=anat_phase,cmap='coolwarm')
+for i,ip in enumerate(ap_deg):
+    plt.text(mean_coords_raw[i,0],mean_coords_raw[i,2],str(np.round(ip)))
+
 fig = plt.figure()
 ax = fig.add_subplot(projection='3d')
 ax.scatter(pbcoords[:,0],pbcoords[:,1],pbcoords[:,2],c=cp,s=1,alpha=0.1,cmap='coolwarm')
@@ -148,9 +178,12 @@ for i,n in enumerate(ranked_EPG):
     ranked_pbcoords[i,:] = pmean
 
 
-pre_EPG = postsyn_df['pre_pt_root_id'].unique()
+pre_EPG = postsyn_df['pre_root_id_720575940'].unique()
 
 #%% Glomerular identification from clustering
+# Glomeruli are assigned by doing kmeans clustering on the mean presyn PB positions
+# and also the neuronal phase assignment as determined from the ellipsoid body
+
 plt.close('all')
 cludata = np.append(ranked_pbcoords,np.cos(ranked_theta[:,np.newaxis]),axis=1)
 cludata = np.append(cludata,np.sin(ranked_theta[:,np.newaxis]),axis=1)
@@ -160,15 +193,14 @@ cludata[:,3:] = cludata[:,3:]*3 # Increase the weight of the EB phase to ensure 
 from sklearn.cluster import KMeans
 from scipy.stats import circmean
 km = KMeans(n_clusters=16,n_init=50).fit(cludata) # Does not always give appropriate coords
-# Need 17 to cluster data
-# Remove one glom
+
 lab_o = km.labels_
 counts = np.bincount(lab_o)
 single_cle = np.where(counts==0)[0]
 
 
 cents = km.cluster_centers_
-cdx = np.argsort(cents[:,0])
+cdx = np.argsort(-cents[:,0])
 cents = cents[cdx,:]
 
 
@@ -178,7 +210,7 @@ ax = fig.add_subplot(projection='3d')
 ax.scatter(cludata[:,0],cludata[:,1],cludata[:,2],color='k')
 ax.scatter(cents[:,0],cents[:,1],cents[:,2],color='r')
 
-cs = np.argsort(cents[:,0])
+cs = np.argsort(-cents[:,0])
 cents  = cents[cs,:]
 labs = np.array([])
 for i,c in enumerate(cludata):
@@ -193,20 +225,30 @@ dx_PB_glom = np.array([],dtype='int')
 glom_id = np.array([],dtype='int')
 glom_theta = np.array([])
 glomorder = np.arange(0,16)
+
+
+
+
+# Glomeruli are counted from right to left as per my convention
+
 # Minor adjustment of array order
-glomorder[15] =14 
 glomorder[14] = 15
+glomorder[15] = 14
 for io,i in enumerate(glomorder):
     dx_PB_glom = np.append(dx_PB_glom,np.where(labs==i)[0])
     glom_id = np.append(glom_id,np.ones(np.sum(labs==i),dtype='int')*io)
-    ax.scatter(cludata[labs==i,0],cludata[labs==i,1],cludata[labs==i,2],color='r')
-    ax.text(cents[i,0],cents[i,1],cents[i,2],io)
+    ax.scatter(ranked_pbcoords[labs==i,0],ranked_pbcoords[labs==i,1],ranked_pbcoords[labs==i,2],color='r')
+    #ax.text(cents[i,0],cents[i,1],cents[i,2],io)
+    ax.text(ranked_pbcoords[labs==i,0][0],ranked_pbcoords[labs==i,1][0],ranked_pbcoords[labs==i,2][0],io)
     glom_theta = np.append(glom_theta,circmean(ranked_theta[labs==i],low=-np.pi,high=np.pi))
 
 ranked_EPG_final = ranked_EPG[dx_PB_glom]
 ranked_theta_final = ranked_theta[dx_PB_glom]
 ranked_glom_theta = glom_theta[glom_id]
 ranked_pbcoords_final = ranked_pbcoords[dx_PB_glom,:]
+
+plt.figure()
+plt.plot(ranked_pbcoords_final[:,0],glom_id)
 
 # Save this information - consolidate the above to minimal set
 savedict = {'root_ids':ranked_EPG_final,'EB_theta':ranked_theta_final,
@@ -219,18 +261,25 @@ ug.save_pick(savedict,os.path.join(savedir,'EPG_GlomAdv.pkl'))
 dx = df_meta['hemibrain_type']=='Delta7'
 print(np.sum(dx))
 delta7 = df_meta['root_id'][dx].to_numpy()
-presyn_d7 = client.materialize.query_view("valid_synapses_nt_np_v6", filter_in_dict={"pre_pt_root_id": delta7})
-postsyn_d7 = client.materialize.query_view("valid_synapses_nt_np_v6", filter_in_dict={"post_pt_root_id": delta7})
-#%% 
+delta7 = np.mod(delta7,720575940000000000)
+
+
+
+# presyn_d7 = client.materialize.query_view("valid_synapses_nt_np_v6", filter_in_dict={"pre_pt_root_id": delta7})
+# postsyn_d7 = client.materialize.query_view("valid_synapses_nt_np_v6", filter_in_dict={"post_pt_root_id": delta7})
+
+presyn_d7 = df_p[np.in1d(df_p['pre_root_id_720575940'],delta7)]
+postsyn_d7 = df_p[np.in1d(df_p['post_root_id_720575940'],delta7)]
+#%% Determine anatomical features and inherited tuning of delta 7 neurons
 EPG_dict = ug.load_pick(os.path.join(savedir,'EPG_GlomAdv.pkl'))
 # Group based upon two criteria
 
 # 1. Output glomerulous - there are 18 rather than 16 glomeruli 
 
 pbdx = presyn_d7['neuropil']=='PB'
-pids = presyn_d7['pre_pt_root_id'][pbdx]
-d7_pbcoords = np.array(presyn_d7['pre_pt_position'][pbdx].tolist())
-d7_pbcoords[:,0] =-d7_pbcoords[:,0]
+pids = presyn_d7['pre_root_id_720575940'][pbdx]
+#d7_pbcoords = np.array(presyn_d7['pre_pt_position'][pbdx].tolist())
+d7_pbcoords = np.array(presyn_d7[prelist][pbdx].to_numpy())
 
 d7_pb_out = np.zeros((len(delta7),3,3))
 
@@ -253,19 +302,25 @@ ax.scatter(d7_pb_out[:,0,2],d7_pb_out[:,1,2],d7_pb_out[:,2,2],color='r')
 # 2. Input EPG tuning
 input_thetas = np.zeros(len(delta7))
 input_thetas_norm = np.zeros(len(delta7))
+input_gloms = np.zeros((16,len(delta7)))
 normvals = np.linspace(-np.pi,np.pi,16)
 for i,c in enumerate(delta7):
-    tdf = postsyn_d7[postsyn_d7['post_pt_root_id']==c]
-    dx = np.in1d(tdf['pre_pt_root_id'],EPG_dict['root_ids'])
-    tepg = tdf['pre_pt_root_id'][dx].unique()
+    # Find a cell
+    tdf = postsyn_d7[postsyn_d7['post_root_id_720575940']==c]
+    # Get its EPG inputs
+    dx = np.in1d(tdf['pre_root_id_720575940'],EPG_dict['root_ids'])
+    tepg = tdf['pre_root_id_720575940'][dx].unique()
+    
     weights = np.zeros(len(tepg))
     thetas = np.zeros(len(tepg))
     gloms = np.zeros(len(tepg),dtype='int')
+    # Collect synapse counts and anatomical theta of EPG inputs
     for it,ep in enumerate(tepg):
-        weights[it] = np.sum(tdf['pre_pt_root_id']==ep)
+        weights[it] = np.sum(tdf['pre_root_id_720575940']==ep)
         edx = EPG_dict['root_ids']==ep
         thetas[it] = EPG_dict['EB_theta'][edx][0]
         gloms[it] = EPG_dict['PB_glomeruli'][edx][0]
+        input_gloms[gloms[it],i] = input_gloms[gloms[it],i]+weights[it]
     weights = weights/np.sum(weights)
     thetas_norm = normvals[gloms]
     
@@ -275,11 +330,13 @@ for i,c in enumerate(delta7):
     tcossum = np.sum(tcos)
     input_thetas[i] = np.arctan2(tsinsum,tcossum)
     
-    tsin = weights*np.sin(thetas_norm)
+    tsin = weights*np.sin(thetas_norm) # Normalised/idealised values applied to gloms
     tcos = weights*np.cos(thetas_norm)
     tsinsum =np.sum(tsin)
     tcossum = np.sum(tcos)
     input_thetas_norm[i] = np.arctan2(tsinsum,tcossum)
+
+    
 
 c1 = np.zeros(len(d7_pbcoords))
 c2 = np.zeros(len(d7_pbcoords))
@@ -288,16 +345,18 @@ for i,c in enumerate(delta7):
     c2[pids==c] = input_thetas_norm[i]
     
 fig = plt.figure()
+#Values derived straight from EB (input thetas)
 ax = fig.add_subplot(projection='3d')
 ax.scatter(d7_pbcoords[:,0],d7_pbcoords[:,1],d7_pbcoords[:,2],c=c1,cmap='coolwarm',s=1)
 
 fig = plt.figure()
+#Values idealised (input thetas norm)
 ax = fig.add_subplot(projection='3d')
 ax.scatter(d7_pbcoords[:,0],d7_pbcoords[:,1],d7_pbcoords[:,2],c=c2,cmap='coolwarm',s=1)
 
 #%%
 savedict = {'root_ids':delta7,'PB_theta':input_thetas,'PB_theta_by_glom':input_thetas_norm,
-            'output_locos':d7_pb_out}
+            'output_locos':d7_pb_out,'input_gloms':input_gloms}
 savedir = 'D:\\ConnectomeData\\FlywireWholeBrain'
 ug.save_pick(savedict,os.path.join(savedir,'Delta7_GlomAdv.pkl'))
 
@@ -305,17 +364,29 @@ ug.save_pick(savedict,os.path.join(savedir,'Delta7_GlomAdv.pkl'))
 dx = df_meta['hemibrain_type']=='PFL3'
 print(np.sum(dx))
 PFL3 = df_meta['root_id'][dx].to_numpy()
-presyn_PFL3 = client.materialize.query_view("valid_synapses_nt_np_v6", filter_in_dict={"pre_pt_root_id": PFL3})
-postsyn_PFL3 = client.materialize.query_view("valid_synapses_nt_np_v6", filter_in_dict={"post_pt_root_id": PFL3})
+
+PFL3 = np.mod(PFL3,720575940000000000)
+
+
+
+# presyn_d7 = client.materialize.query_view("valid_synapses_nt_np_v6", filter_in_dict={"pre_pt_root_id": delta7})
+# postsyn_d7 = client.materialize.query_view("valid_synapses_nt_np_v6", filter_in_dict={"post_pt_root_id": delta7})
+
+presyn_PFL3= df_p[np.in1d(df_p['pre_root_id_720575940'],PFL3)]
+postsyn_PFL3 = df_p[np.in1d(df_p['post_root_id_720575940'],PFL3)]
+
+#presyn_PFL3 = client.materialize.query_view("valid_synapses_nt_np_v6", filter_in_dict={"pre_pt_root_id": PFL3})
+#postsyn_PFL3 = client.materialize.query_view("valid_synapses_nt_np_v6", filter_in_dict={"post_pt_root_id": PFL3})
 
 #%% Get PFL FSB columnar arrangement
+postlist = ['post_x','post_y','post_z']
 from scipy import stats
 fsbdx = postsyn_PFL3['neuropil']=='FB'
 pfl3coords = np.zeros((len(PFL3),3))
 pfl3_projmean = np.zeros((len(PFL3),3))
-pfl3_coords_all = postsyn_PFL3['post_pt_position'].to_numpy()
+pfl3_coords_all = postsyn_PFL3[postlist].to_numpy()
 pfl3_coords_all = np.array(pfl3_coords_all.tolist())
-pfl3_coords_all[:,0] = -pfl3_coords_all[:,0]
+pfl3_coords_all[:,0] = pfl3_coords_all[:,0]
 
 
 pca = PCA(n_components=3)
@@ -325,36 +396,40 @@ b = pca.components_
 proj = np.matmul(pfl3fit,pca.components_.T)
     
 for i,p in enumerate(PFL3):
-    pdx = postsyn_PFL3['post_pt_root_id']==p
+    pdx = postsyn_PFL3['post_root_id_720575940']==p
     dx = np.logical_and(pdx,fsbdx)
-    tcoords = postsyn_PFL3['post_pt_position'][dx].to_numpy()
+    tcoords = postsyn_PFL3[postlist][dx].to_numpy()
     tcoords = np.array(tcoords.tolist())
-    tcoords[:,0] = -tcoords[:,0]
+    tcoords[:,0] = tcoords[:,0]
     pfl3coords[i,:] = np.mean(tcoords,axis=0)
     pfl3_projmean[i,:] = np.mean(proj[dx,:],axis=0)
     
 km = KMeans(n_clusters=12,n_init=50).fit(pfl3coords) # Does not always give appropriate coords
 cents = km.cluster_centers_
-cr = np.argsort(cents[:,0])
+cr = np.argsort(-cents[:,0]) # rank so that right side are ranked first (ie descending order)
 cents_ranked = cents[cr,:]
 col_array= np.arange(0,12)
 col_array2 = col_array.copy()
 col_array2[cr] = col_array.copy()
 pfl3_col_id = col_array2[km.labels_] 
 
-# Re rank PB gloms 
+# Get FSB column thetas from PB thetas, numbered right to left
 pb_rank_cond = np.append(np.arange(0,8),np.arange(0,8))
+pb_rank_cond_9 = np.array([1,2,3,4,5,6,7,0,8,1,2,3,4,5,6,7])
+
+col9_theta = np.zeros(9)
 col8_theta = np.zeros(8)
 for i in range(8):
     col8_theta[i] = stats.circmean(glom_theta[pb_rank_cond==i],low=-np.pi,high=np.pi)
-    
+for i in range(9):
+    col9_theta[i] = stats.circmean(glom_theta[pb_rank_cond_9==i],low=-np.pi,high=np.pi)
 # This shift if zeroed produces a perfect PFL3 output... needto check...
 col8_theta_shift = np.roll(col8_theta,0) # shift by one column since middle glom innervates right FSB
 
 
 col12_theta = ug.circ_interp(np.linspace(0,7,12),np.arange(0,8),col8_theta_shift)
-
-pfl3_thetas = col12_theta[pfl3_col_id]
+col12_theta2 = ug.circ_interp(np.linspace(0,8,12),np.arange(0,9),col9_theta)
+pfl3_thetas = col12_theta2[pfl3_col_id]
     
     
     
@@ -383,32 +458,42 @@ for ir,r in enumerate(ranked_pbcoords_final):
 #%% Get PFL3 EPG, delta7 input matrix
 PFL3_inputmat = np.zeros((len(ranked_EPG_final)+len(delta7),len(PFL3)))
 PFL3_LAL = np.zeros(len(PFL3))
+
 PFL3_input_angles = np.append(ranked_theta_final,input_thetas)
 activation_sign = np.append(np.ones(len(ranked_theta_final)),-np.ones(len(input_thetas)))
+
+#PFL3_input_gloms = np.append(glom_id,)
+
 for i,p in enumerate(PFL3):
-    pdx = postsyn_PFL3['post_pt_root_id']==p
-    ROIs = np.unique(postsyn_PFL3['neuropil'][pdx])
+    pdx = postsyn_PFL3['post_root_id_720575940']==p
+    ROIs = np.unique(postsyn_PFL3['neuropil'][pdx].dropna().to_numpy())
     if sum(ROIs=='LAL_L')==1:
         PFL3_LAL[i] = -1 
     elif sum(ROIs=='LAL_R')==1:
         PFL3_LAL[i] = 1
     for ie,e in enumerate(ranked_EPG_final):
-        edx = postsyn_PFL3['pre_pt_root_id']==e
+        edx = postsyn_PFL3['pre_root_id_720575940']==e
         dx = np.logical_and(pdx,edx)
         PFL3_inputmat[ie,i] = np.sum(dx)
         
     for ie,e in enumerate(delta7):
-        edx = postsyn_PFL3['pre_pt_root_id']==e
+        edx = postsyn_PFL3['pre_root_id_720575940']==e
         dx = np.logical_and(pdx,edx)
         PFL3_inputmat[ie+len(ranked_EPG_final),i] = np.sum(dx)
 
+#%% Save data
+savedict = {'col12_theta': col12_theta2,'PFL3_thetas':pfl3_thetas,'root_ids': PFL3, 
+            'PFL3_input_angles': PFL3_input_angles,'PFL3_inputmat':PFL3_inputmat,'activation_sign': activation_sign,
+            'PFL3_LAL':PFL3_LAL,'PFL3_col_id': pfl3_col_id}
+savedir = 'D:\\ConnectomeData\\FlywireWholeBrain'
+ug.save_pick(savedict,os.path.join(savedir,'PFL3_info.pkl'))
 #%% Model output for different EB offsets without FSB input
 #plt.close('all')
 offsets = np.linspace(-np.pi,np.pi,100)
 diff = np.zeros(len(offsets))
 PFL3_inputmatN = PFL3_inputmat/np.sum(PFL3_inputmat,axis=0)
 for io,o in enumerate(offsets):
-    act_vector = (np.cos(PFL3_input_angles+o)+1)*activation_sign
+    act_vector = (np.cos(PFL3_input_angles-o)+1)*activation_sign
     pact = np.matmul(act_vector,PFL3_inputmat)
     L = np.sum(pact[PFL3_LAL==-1])
     R = np.sum(pact[PFL3_LAL==1])
@@ -426,9 +511,10 @@ plt.figure(102)
 plt.scatter(offsets,diff,c=offsets,cmap='coolwarm')    
 #plt.ylim([-600,600])
 plt.ylabel('Right - Left PFL activation (AU)')
-plt.xlabel('Bump position (rads)')
+plt.xlabel('EPG Bump position (rads)')
 
 #%% Model output for different EB offsets without FSB input
+# When EPG bump is to the left it should have a right turn
 #plt.close('all')
 offsets = np.linspace(-np.pi,np.pi,100)
 diff = np.zeros(len(offsets))
@@ -478,6 +564,7 @@ for ig,gstrength in enumerate(gstrengths):
             #print(L,R)
     
     plt.subplot(3,3,ig+1)
+    plt.title(gstrength)
     plt.imshow(np.flipud(diff),aspect='auto',cmap='coolwarm',vmin=-.1,vmax=.1)
     plt.xlabel('FSB bump')
     plt.ylabel('PB bump')
@@ -533,6 +620,36 @@ for ig,gstrength in enumerate(gstrengths):
     plt.scatter(pfl3_thetas,gact,label=ig)
 plt.ylim([0,15])
 plt.legend()
+#%%
+
+from analysis_funs.CX_analysis_col import CX_a
+from EdgeTrackingOriginal.ETpap_plots.ET_paper import ET_paper
+from CD_edge_tracking.Models.neuro2pfl3 import pfl3_model
+import matplotlib.pyplot as plt
+datadir ="Y:\Data\FCI\Hedwig\FC2_maimon2\\240514\\f1\\Trial2"
+etp = ET_paper(datadir)
+#%%
+mdl = pfl3_model()
+phase_eb = etp.cxa.pdat['phase_eb']
+phase_goal = etp.cxa.pdat['phase_fsb_upper']
+
+
+L,R,turns = mdl.model_pfl3_phase(phase_eb,phase_goal,goal_weight=2,eb_function='cosine',goal_function='cosine')
+    
+plt.plot(turns,color='k')    
+fsb  = etp.cxa.pdat['wedges_fsb_upper']
+
+L,R,turns2 =  mdl.model_pfl3_fsb_data(phase_eb,fsb,goal_weight=5,eb_function='cosine',goal_function='cosine')
+plt.plot(turns2,color='r')
+    
+ebw = etp.cxa.pdat['wedges_eb']
+L,R,turns3 = mdl.model_pfl3_all_data(ebw,fsb,goal_weight=10,d7weight=3)
+
+plt.plot(turns3,color='b')
+
+plt.figure()
+plt.scatter(turns2,turns3,s=1)
+etp.cxa.plot_traj_arrow_heat(['fsb_upper'],turns2,cmin=-.5,cmax=.5,a_sep=5)
 #%% Play in some activity to the network
 from analysis_funs.CX_analysis_col import CX_a
 from EdgeTrackingOriginal.ETpap_plots.ET_paper import ET_paper
@@ -542,14 +659,19 @@ etp = ET_paper(datadir)
 #%% Model with EB phase, fsb phase or wedges
 plt.close('all')
 from scipy.interpolate import interpn
-poffset = ug.circ_subtract(col12_theta[0],-np.pi)
-eb = ug.circ_subtract(etp.cxa.pdat['phase_eb'],-poffset) # add phase offset to match anatomy
+poffset = ug.circ_subtract(col12_theta2[0],-np.pi)
+eb = ug.circ_subtract(etp.cxa.pdat['phase_eb'],-poffset) # add phase offset to match anatomy, this should be close to zero. From my data it is 18 degrees
 phase = ug.circ_subtract(etp.cxa.pdat['phase_fsb_upper'],-poffset)
 fsb = etp.cxa.pdat['wedges_fsb_upper']
+#fsb = np.linspace(-np.pi,np.pi,16)[np.newaxis,:]
+#fsb = np.tile(fsb,(len(eb),1))
+#fsb = np.fliplr(np.cos(fsb-etp.cxa.pdat['phase_fsb_upper'][:,np.newaxis]))
+
 x_old = np.linspace(0, 1, 16)
 x_new = np.linspace(0, 1, 12)
 
-fsb_interp = np.apply_along_axis(lambda row: np.interp(x_new, x_old, row), 1, fsb)
+fsb_interp =ug.circular_column_interp(fsb,x_old,x_new)
+# np.apply_along_axis(lambda row: np.interp(x_new, x_old, row), 1, fsb)
 turn = np.zeros(len(eb))
 turn_rough = np.zeros(len(eb))
 for ie,e in enumerate(eb):
@@ -565,16 +687,23 @@ for ie,e in enumerate(eb):
     turn[ie]= (R-L)/np.sum(R+L)
     
     gact2 = fsb_interp[ie,pfl3_col_id]*5
+    gact3 = 2*(fsb_interp[ie,pfl3_col_id]+1)
+    
     tact = np.exp(pact+gact2)
     
     L = np.sum(tact[PFL3_LAL==-1])
     R = np.sum(tact[PFL3_LAL==1])
     turn_rough[ie]= (R-L)/np.sum(R+L)
+    if np.mod(ie,1000)==0:
+        plt.figure()
+        plt.scatter(pfl3_col_id,gact3)
+        plt.scatter(pfl3_col_id,gact)
+        
 
-plt.plot(turn,color='k')
-plt.plot(turn_rough,color='r')
-da = ug.get_ang_velocity(etp.cxa.ft2['ft_heading'].to_numpy(),etp.cxa.pv2['relative_time'].to_numpy())
-plt.plot(.1*da/np.std(da),color='b')
+# plt.plot(turn,color='k')
+# plt.plot(turn_rough,color='r')
+# da = ug.get_ang_velocity(etp.cxa.ft2['ft_heading'].to_numpy(),etp.cxa.pv2['relative_time'].to_numpy())
+# plt.plot(.1*da/np.std(da),color='b')
 #%%
 plt.close('all')
 # plt.scatter(phase,eb,c=turn_rough)

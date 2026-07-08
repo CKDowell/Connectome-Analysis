@@ -30,7 +30,7 @@ class FW_sim:
         print('Loading data')
         
         # Connections
-        dpath = os.path.join(self.datapath ,'connections.csv')
+        dpath = os.path.join(self.datapath ,'connections_princeton_no_threshold.csv')
         self.connections = pd.read_csv(dpath)#read in
         
         # Neuron classification
@@ -227,49 +227,49 @@ class FW_sim:
 #%% Testbed
 
 
-fw = FW_sim()
-# choice = {'Type': 'All'}
-# fw.initialise_network(choice)
-# choice = {'Type': 'NeuronClass','Neuprint': False,'FwClass': True,'FwSuper': False,'NeuronClass': 'optic_lobes'}
-# fw.initialise_network(choice)
-choice = {'Type': 'Neuropil','Neuprint': False,'FwClass': False,'FwSuper': False,'NeuronClass': ['FB']}
-fw.initialise_network(choice,'small')
-fw.simulation_NP_class('FB5AB',5,10)
-#%%
-import matplotlib.pyplot as plt
-plt.imshow(fw.activity_matrix,interpolation='none',aspect='auto',vmin=-0.1,vmax=0.1)
+# fw = FW_sim()
+# # choice = {'Type': 'All'}
+# # fw.initialise_network(choice)
+# # choice = {'Type': 'NeuronClass','Neuprint': False,'FwClass': True,'FwSuper': False,'NeuronClass': 'optic_lobes'}
+# # fw.initialise_network(choice)
+# choice = {'Type': 'Neuropil','Neuprint': False,'FwClass': False,'FwSuper': False,'NeuronClass': ['FB']}
+# fw.initialise_network(choice,'small')
+# fw.simulation_NP_class('FB5AB',5,10)
+# #%%
+# import matplotlib.pyplot as plt
+# plt.imshow(fw.activity_matrix,interpolation='none',aspect='auto',vmin=-0.1,vmax=0.1)
 
-#%%
-df = fw.connections.copy()
-neurotransmitter_effects = {
-    'ACH': 1,   
-    'DA': -1,     
-    'GABA': -1,  
-    'GLUT': -1,  
-    'OCT': 1,   
-    'SER': 1    
-    }
-df['nt_sign'] = df['nt_type'].map(neurotransmitter_effects)#convert type to sign in the data frame
-df['syn_cnt_sgn'] = df['syn_count']*df['nt_sign']#multiply count by sign for unscaled 'effectome'
-df = df.groupby(['pre_root_id', 'post_root_id']).agg({'syn_cnt_sgn': 'sum', 'syn_count': 'sum', 'neuropil':'first', 
-       'nt_type':'first'}).reset_index()#sum synapses across all unique pre and post pairs
+# #%%
+# df = fw.connections.copy()
+# neurotransmitter_effects = {
+#     'ACH': 1,   
+#     'DA': -1,     
+#     'GABA': -1,  
+#     'GLUT': -1,  
+#     'OCT': 1,   
+#     'SER': 1    
+#     }
+# df['nt_sign'] = df['nt_type'].map(neurotransmitter_effects)#convert type to sign in the data frame
+# df['syn_cnt_sgn'] = df['syn_count']*df['nt_sign']#multiply count by sign for unscaled 'effectome'
+# df = df.groupby(['pre_root_id', 'post_root_id']).agg({'syn_cnt_sgn': 'sum', 'syn_count': 'sum', 'neuropil':'first', 
+#        'nt_type':'first'}).reset_index()#sum synapses across all unique pre and post pairs
 
 
-n_number = fw.n_number.copy()
+# n_number = fw.n_number.copy()
 
-pre = pd.Series.to_numpy(df['pre_root_id'],dtype='int64')
+# pre = pd.Series.to_numpy(df['pre_root_id'],dtype='int64')
 
-dx1 = np.isin(pre,n_number)
+# dx1 = np.isin(pre,n_number)
 
-post = pd.Series.to_numpy(df['post_root_id'],dtype='int64')
-dx2 = np.in1d(post,n_number)
+# post = pd.Series.to_numpy(df['post_root_id'],dtype='int64')
+# dx2 = np.in1d(post,n_number)
 
-dx = dx1&dx2
-print(len(np.unique(df['pre_root_id'][dx])))
+# dx = dx1&dx2
+# print(len(np.unique(df['pre_root_id'][dx])))
 
     
-dx_i = [i for i,r in enumerate(dx) if r>0.1]
-n_check = np.append(df['pre_root_id'][dx],df['post_root_id'][dx])
-n_check = np.unique(n_check)
-print(len(n_check))
-#%%
+# dx_i = [i for i,r in enumerate(dx) if r>0.1]
+# n_check = np.append(df['pre_root_id'][dx],df['post_root_id'][dx])
+# n_check = np.unique(n_check)
+# print(len(n_check))
+# #%%

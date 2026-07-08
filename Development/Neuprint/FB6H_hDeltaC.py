@@ -17,22 +17,29 @@ import matplotlib.pyplot as plt
 import pickle as pkl
 import os
 plt.rcParams['pdf.fonttype'] = 42 
+#%% 
+neuron1 = 'FB6H'
+neuron2 = 'hDeltaC'
+
 
 #%%
 da_criteria = SC(rois='FB', primary_only=True)
 
-neuron_df = fetch_synapse_connections(NC(type='FB6H'),NC(type='hDeltaC'),da_criteria)
+neuron_df = fetch_synapse_connections(NC(type=neuron1),NC(type=neuron2),da_criteria)
+
+
+
 #%%
 pre_synloc =  neuron_df[['x_pre','y_pre','z_pre']].to_numpy()
 post_synloc =  neuron_df[['x_post','y_post','z_post']].to_numpy()
 plt.scatter(pre_synloc[:,0],pre_synloc[:,1],s=5,color='m')
 plt.scatter(post_synloc[:,0],post_synloc[:,1],s=5,color='b')
 #%%
-h_Delta_out_syn = fetch_synapse_connections(NC(type='hDeltaC'),None,da_criteria)
-h_Delta_in_syn = fetch_synapse_connections(None,NC(type='hDeltaC'),da_criteria)
+h_Delta_out_syn = fetch_synapse_connections(NC(type=neuron2),None,da_criteria)
+h_Delta_in_syn = fetch_synapse_connections(None,NC(type=neuron2),da_criteria)
 #%% 
 plt.close('all')
-savedir = r'Y:\Data\Connectome\Connectome Mining\FB6H'
+savedir = r'Y:\Data\Connectome\Connectome Mining\SynapseProximityAnalysis'
 xyz_out = h_Delta_out_syn[['x_pre','y_pre','z_pre']].to_numpy()
 xyz_in = h_Delta_in_syn[['x_post','y_post','z_post']].to_numpy()
 
@@ -42,7 +49,7 @@ uROI = np.unique(out_ROI)
 uNeurons,_ = fetch_neurons(uROI)
 uROI = uNeurons['bodyId'].to_numpy()
 u_types = uNeurons['type'].to_numpy()
-roi_thresh = 1/0.008# 1um assuming 8nm resolution
+roi_thresh = .5/0.008# 1um assuming 8nm resolution
 u_utypes = np.unique(u_types[(u_types!=None)])
 typecount =np.zeros_like(u_utypes)
 
@@ -93,10 +100,10 @@ plt.figure()
 plt.plot(xplt.T,yplt.T,color='k')
 plt.xticks(np.arange(0,len(typecount_plot)),labels=u_utypesplot[tcr],rotation=90)
 plt.subplots_adjust(bottom=0.2)
-plt.ylabel('Proportion of FB6H-hDeltaC synapses')
-plt.title('Within 1 um post-synaptic to hDeltaC')
-plt.savefig(os.path.join(savedir,'hDeltaC_FB6H_downstreamClose.png'))
-plt.savefig(os.path.join(savedir,'hDeltaC_FB6H_downstreamClose.pdf'))
+plt.ylabel('Proportion of ' +neuron1+ '-'+neuron2+' synapses')
+plt.title('Within 1 um post-synaptic to '+ neuron2)
+plt.savefig(os.path.join(savedir,neuron1+'_'+neuron2+'_downstreamClose.png'))
+plt.savefig(os.path.join(savedir,neuron1+'_'+neuron2+'_downstreamClose.pdf'))
 
 iu_utypesplot = iu_utypes[itypecount>minplot]
 itypecount_plot = itypecount[itypecount>minplot]
@@ -110,10 +117,10 @@ plt.figure()
 plt.plot(xplt.T,yplt.T,color='k')
 plt.xticks(np.arange(0,len(itypecount_plot)),labels=iu_utypesplot[tcr],rotation=90)
 plt.subplots_adjust(bottom=0.2)
-plt.ylabel('Proportion of FB6H-hDeltaC synapses')
-plt.title('Within 1 um pre-synaptic to hDeltaC')
-plt.savefig(os.path.join(savedir,'hDeltaC_FB6H_upstreamClose.png'))
-plt.savefig(os.path.join(savedir,'hDeltaC_FB6H_upstreamClose.pdf'))
+plt.ylabel('Proportion of '+neuron1+ '-'+neuron2+' synapses')
+plt.title('Within 1 um pre-synaptic to '+neuron1)
+plt.savefig(os.path.join(savedir,neuron1+'_'+neuron2+'_upstreamClose.png'))
+plt.savefig(os.path.join(savedir,neuron1+'_'+neuron2+'_upstreamClose.pdf'))
 
 #%% Same for FB4M
 

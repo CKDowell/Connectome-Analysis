@@ -42,7 +42,7 @@ c.fetch_version()
 from neuprint import fetch_neurons, NeuronCriteria as NC
 #%%
 class fw_corrections:
-    def __init__(self,classtype='original'):
+    def __init__(self,classtype='Charlie'):
         self.datapath = "D:\ConnectomeData\FlywireWholeBrain"
         print('Loading Flywire data')
         
