@@ -122,7 +122,7 @@ plt.subplots_adjust(bottom=0.2)
 plt.show()
 #%% Dendrite vs axon location finder
 from neuprint import Client
-c = Client('neuprint.janelia.org',dataset='hemibrain:v1.2.1', token ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImRvd2VsbC5ja0BnbWFpbC5jb20iLCJsZXZlbCI6Im5vYXV0aCIsImltYWdlLXVybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hL0FDZzhvY0tQR3JQak5vclh3WXM0WWZnNld2SkV3U0N5NlVmQlhnYXlaZm5hMlpZZj1zOTYtYz9zej01MD9zej01MCIsImV4cCI6MTg3NDgxNDMwNn0.aJVCj8lW1kvChpMy8zz2_LY1RgBjw1hmLL3vTHE4nys')
+c = Client('neuprint.janelia.org',dataset='hemibrain:v1.2.1', token ='41275a6e3b110e7065d2d6fd22650fed7bddd1da2d2ddd395262ac3245c48a46')
 c.fetch_version()
 from neuprint import NeuronCriteria as NC, SynapseCriteria as SC, fetch_synapses, fetch_synapse_connections
 from scipy import stats

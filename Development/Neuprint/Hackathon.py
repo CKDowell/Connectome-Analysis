@@ -398,6 +398,72 @@ for ic,c in enumerate(cols):
 
 plt.ylim([-5,12])
 plt.savefig(os.path.join(r'Y:\Presentations\2026\03_CSHL\Panels','FC2_inputs.pdf'))
+#%% Compiled bar graph of all neurons
+plt.close('all')
+columnars = ['hDelta','vDelta','PFN','FC','PFR']
+tangentials = ['FB']
+neurons = ['FC2A','FC2B','FC2C']
+
+supertypes = columnars+tangentials
+scmap = plt.cm.tab10(np.linspace(0,1,len(supertypes)))
+
+scmap = np.array([[0,139,198],
+               [132,135,180],
+              [ 0,176,166],
+              [93,171,211],
+              [196,121,81],
+              [138,200,131]])/255
+supercolors = dict(zip(supertypes,scmap))
+label_thresh = 50 # tune this if labels get too crowded
+fsize = 6
+plt.figure()
+bar_h = 0.7
+group_gap = 2
+ytick_pos = np.array([])
+for i,neuron in enumerate(neurons):
+    rois = None
+    tmin = 10
+    ndf,ndf2 = fetch_neurons(NC(type=neuron))
+    typelib_u, t_inputs, ncells = cf.top_inputs(neuron,rois=rois)
+    t_inputs = t_inputs/len(ndf) # average syn count per cell
+    tdx = t_inputs>=tmin
+    typelib_u = typelib_u[tdx]
+    t_inputs = t_inputs[tdx]
+
+    y_col = i*group_gap
+    y_tan = y_col-1
+    ytick_pos = np.append(ytick_pos,y_col)
+
+    left = 0
+    for st in columnars:
+        match = np.where(np.char.startswith(typelib_u,st))[0]
+        match = match[np.argsort(-t_inputs[match])]
+        for m in match:
+            width = t_inputs[m]
+            plt.barh(y_col,width,left=left,color=supercolors[st],height=bar_h,edgecolor='w',linewidth=1)
+            if width>label_thresh:
+                plt.text(left+width/2,y_col,typelib_u[m],ha='center',va='center',fontsize=fsize)
+            left = left+width
+
+    left = 0
+    for st in tangentials:
+        match = np.where(np.char.startswith(typelib_u,st))[0]
+        match = match[np.argsort(-t_inputs[match])]
+        for m in match:
+            width = t_inputs[m]
+            plt.barh(y_tan,width,left=left,color=supercolors[st],height=bar_h,edgecolor='w',linewidth=1)
+            if width>label_thresh:
+                plt.text(left+width/2,y_tan,typelib_u[m],ha='center',va='center',fontsize=fsize)
+            left = left+width
+
+plt.yticks(ytick_pos,labels=neurons)
+plt.xlabel('Mean input synapse count')
+handles = [plt.Rectangle((0,0),1,1,color=supercolors[st]) for st in supertypes]
+plt.legend(handles,supertypes,bbox_to_anchor=(1.05,1),loc='upper left')
+plt.subplots_adjust(right=0.75)
+savedir = r'Y:\Applications\K99\PHS 398 Career Development Award Supplemental Form\Figures\Figure3'
+plt.savefig(os.path.join(savedir,'FC2_inputs_ranked.pdf'))
+
 #%%
 
 
@@ -442,7 +508,8 @@ plt.ylim([np.min(x[:])-0.5,np.max(x[:])+0.5])
 plt.close('all')
 savedir = r"Y:\Papers, Review, Theses\RutaLabPapers\ET_2024\MyContribution\SupplementalPanels"
 neurons =[
-    'OA-VPM3'
+    'PFNp_a','PFNp_b','PFNp_c','PFNp_d','PFNp_e'
+    #'OA-VPM3'
     #'FC2A','FC2B','FC2C'
     #'PFL3','FB5A','FB5G'
     #'FB6Q',#'FB6T','FB5B','FB5L','FB6N'
@@ -452,4 +519,5 @@ neurons =[
     #       'FB5I','FB4M','FB5A','FB6H','hDeltaC','hDeltaF','hDeltaB','hDeltaJ','hDeltaK'
     ]
 for n in neurons:
-    save_top_in_out_sorted(n,savedir,rois='FB')
+    save_top_in_out_sorted(n,savedir)
+    

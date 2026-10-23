@@ -16,6 +16,37 @@ import pickle
 # c = Client('neuprint.janelia.org',dataset='hemibrain:v1.2.1', token ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImRvd2VsbC5ja0BnbWFpbC5jb20iLCJsZXZlbCI6Im5vYXV0aCIsImltYWdlLXVybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hL0FDZzhvY0tQR3JQak5vclh3WXM0WWZnNld2SkV3U0N5NlVmQlhnYXlaZm5hMlpZZj1zOTYtYz9zej01MD9zej01MCIsImV4cCI6MTg3NDgxNDMwNn0.aJVCj8lW1kvChpMy8zz2_LY1RgBjw1hmLL3vTHE4nys')
 # c.fetch_version()
 from neuprint import fetch_neurons,fetch_simple_connections,fetch_synapses,fetch_synapse_connections, NeuronCriteria as NC, SynapseCriteria as SC
+
+#%% Plot FC2 outpu synapse locations against FB5A output synapse locations
+ttype = 'FC2'
+types = ['FC2A','FC2B','FC2C','FB5A']
+colours = np.array([
+    [116,169,207],
+[43,140,190],
+[4,90,141],
+[255,0,0]])/255
+plt.close('all')
+for it,ttype in enumerate(types):
+    neuron_criteria = NC(status='Traced', type=ttype, cropped=False)
+    syn_criteria = SC(rois='FB', primary_only=True)
+    #syn_criteria = SC(primary_only=True)
+    in_syns = fetch_synapses(neuron_criteria, syn_criteria)
+    predx = in_syns['type']=='pre'
+    xyz = in_syns[['x','y','z']][predx].to_numpy()
+    plt.figure(1)
+    plt.scatter(xyz[:,0],-xyz[:,2],color=colours[it,:],s=1,alpha=.3)
+    plt.figure(2)
+    plt.scatter(xyz[:,0],xyz[:,1],color=colours[it,:],s=1,alpha=.3)
+
+savedir = r'Y:\Presentations\2026\09_Update'
+plt.figure(1)
+plt.gca().set_aspect('equal')
+plt.savefig(os.path.join(savedir,'FC2_FB5A_outsyn1.pdf'))
+
+plt.figure(2)
+plt.savefig(os.path.join(savedir,'FC2_FB5A_outsyn2.pdf'))
+plt.gca().set_aspect('equal')
+
 #%% Get dorso-ventral locations of FC2 inputs and outputs
 ttype = 'PFL3'
 neuron_criteria = NC(status='Traced', type=ttype, cropped=False)

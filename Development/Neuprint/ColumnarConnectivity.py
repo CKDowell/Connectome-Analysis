@@ -33,9 +33,9 @@ plt.close('all')
 neurons = [
     # 'hDeltaC',
     # 'hDeltaF',
-    'hDeltaB',
+    #'hDeltaB',
     # 'hDeltaJ','FC1C','FC2A',
-    
+    'FC2B'
     # 'FS1A','FS1B','FS2','FS3','FS4A','FS4B','FS4C',
     # 'hDeltaA','hDeltaB','hDeltaC','hDeltaD','hDeltaE','hDeltaF',
     #'hDeltaG','hDeltaH','hDeltaI','hDeltaJ','hDeltaK','hDeltaL',
@@ -44,8 +44,11 @@ neurons = [
                       #'vDeltaJ','vDeltaK','vDeltaL','vDeltaM'
                       ]
 #columnar_query = ['PFN','PFR','FS','FC','FR','PFG','PFL','hDelta','vDelta']
-columnar_query = ['hDelta','vDelta']
-prepost_query =       ['pre','pre','post','pre','post','pre','post','pre','pre']
+prepost_query =  ['pre','pre','post','pre','post','pre','post','pre','pre']
+columnar_query = ['FC2A','FC2B','FC2C','hDeltaC','hDeltaM','FB5A']
+prepost_query =  ['pre','pre','pre','pre','pre','pre','pre','pre','pre']
+exact = True
+
 for t_neuron in neurons:
     print(t_neuron)
     prepost = 'pre' # How to order the columns, by pre or post neuron
@@ -63,7 +66,10 @@ for t_neuron in neurons:
     con_cols = []
     
     for prefix in columnar_query:
-        match =ucons[ np.char.startswith(ucons, prefix)]
+        if exact:
+            match = ucons[ucons==prefix]
+        else:
+            match =ucons[ np.char.startswith(ucons, prefix)]
         
         con_cols.extend(match)
         
@@ -195,11 +201,14 @@ for t_neuron in neurons:
     # plt.subplot(1,2,1)
     # plt.scatter(synlocs[:,0],synlocs[:,1],c = proj)
     # plt.subplot(1,2,2)
-    plt.imshow(colmat,vmax=30)
+    plt.imshow(colmat,vmax=20)
     plt.xticks(colmax,labels=conames,rotation=90);
     plt.yticks(colmax,labels=conames);
+    plt.ylabel('pre-synapse')
+    plt.xlabel('post-synapse')
     plt.colorbar()
     plt.title(t_neuron)
+    plt.subplots_adjust(bottom=.3)
     break
 #%% See if PFNs output asymmetrically onto tangentials
 from neuprint import Client
